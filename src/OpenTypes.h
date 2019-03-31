@@ -13,7 +13,7 @@ namespace ot {
             : m_message(std::move(message))
 		{}
 
-        virtual const char* what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_USE_NOEXCEPT override {
+        virtual const char* what() const override {
             return m_message.c_str();
         }
 
