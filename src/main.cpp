@@ -4,11 +4,9 @@
 
 
 int main() {
-	printf("Start\n");
-
-	OT_TYPE(MyType);
-	OT_ATTR(MyType, attr, "init");
-	auto obj = OT_OBJECT(MyType);
+    OT_TYPE(MyType);
+    auto obj = OT_OBJECT(MyType);
+    OT_ATTR(MyType, attr, "init");
 	auto obj2 = OT_OBJECT(MyType);
 
 	printf("Get attr from obj\n");
@@ -37,7 +35,6 @@ int main() {
 		printf("Exception: %s", e.what());
 	}
 
-	printf("End\n");
 	std::getchar();
 
 	return 0;

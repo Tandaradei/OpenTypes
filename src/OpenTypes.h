@@ -9,16 +9,21 @@
 namespace ot {
 	struct AttributeNotFoundException : public std::exception
 	{
-		AttributeNotFoundException(char const* const Message) 
-			: std::exception(Message)
+        AttributeNotFoundException(std::string message)
+            : m_message(std::move(message))
 		{}
+
+        virtual const char* what() const _GLIBCXX_TXN_SAFE_DYN _GLIBCXX_USE_NOEXCEPT override {
+            return m_message.c_str();
+        }
+
+    private:
+        std::string m_message;
 	};
-
-
-	std::string fallback_value = "undefined";
 
 	struct BaseType
 	{
+        virtual ~BaseType(){}
 		virtual void addAttribute(std::string name, std::string value) = 0;
 		virtual void removeAttribute(const std::string& name) = 0;
 	};
@@ -37,8 +42,8 @@ namespace ot {
 	struct AttributeAccessor : public BaseAttribute
 	{
 		AttributeAccessor(BaseType* type, std::string name, std::string value)
-			: type(type),
-			BaseAttribute(name, value)
+            : BaseAttribute(name, value),
+              type(type)
 		{
 			type->addAttribute(name, value);
 		}
@@ -74,6 +79,23 @@ namespace ot {
 		std::map<std::string, Attribute> attributes;
 		std::vector<BaseObject*> instanced_objects;
 
+        void registerObject(BaseObject* obj) {
+            instanced_objects.push_back(obj);
+            for (auto& attr : attributes) {
+                obj->attributes.insert({ attr.first, attr.second });
+            }
+        }
+
+        void unregisterObject(BaseObject* obj) {
+            instanced_objects.erase(
+                std::find(
+                    instanced_objects.begin(),
+                    instanced_objects.end(),
+                    obj
+                )
+            );
+        }
+
 		virtual void addAttribute(std::string name, std::string value) override {
 			attributes.insert({ name, Attribute(name, value) });
 			for (auto obj : instanced_objects) {
@@ -102,14 +124,11 @@ namespace ot {
 		Object(Type* type)
 		:	BaseObject(type)
 		{
-			type->instanced_objects.push_back(this);
-			for (auto& attr : type->attributes) {
-				attributes.insert({ attr.first, attr.second });
-			}
+            type->registerObject(this);
 		}
 
 		Object() {
-			type->instanced_objects.erase(type->instanced_objects.find(this));
+            type->unregisterObject(this);
 		}
 
 		std::string& operator[](AttributeAccessor& attr) {
@@ -120,9 +139,9 @@ namespace ot {
 			auto attribute = std::find_if(
 				attributes.begin(),
 				attributes.end(),
-				[&name](auto key) {
-				return key.first == name;
-			}
+                [&name](const auto& key) {
+                    return key.first == name;
+                }
 			);
 			if (attribute != attributes.end()) {
 				return attribute->second.value;
@@ -133,18 +152,18 @@ namespace ot {
 		}
 	};
 
-	std::map<std::string, std::unique_ptr<Type>> types;
+    static std::map<std::string, std::unique_ptr<Type>> types;
 }
 
 #define OT_TYPE(TypeName) \
 	struct TypeName : public ot::Type \
 	{ \
-		\
+        virtual ~TypeName(){}\
 	}; \
-	ot::types.insert({ #TypeName, std::make_unique<TypeName>() })
+    ot::types.insert({ #TypeName, std::make_unique<TypeName>() })
 
 #define OT_OBJECT(TypeName) \
-	ot::Object<TypeName>(ot::types.find(#TypeName)->second.get())
+    ot::Object<TypeName>(ot::types.find(#TypeName)->second.get())
 
 #define OT_ATTR(TypeName, AttrName, DefaultValue) \
-	ot::AttributeAccessor TypeName ##_ ##AttrName = ot::AttributeAccessor(ot::types.find(#TypeName)->second.get(), #AttrName, DefaultValue)
+    ot::AttributeAccessor TypeName ##_ ##AttrName = ot::AttributeAccessor(ot::types.find(#TypeName)->second.get(), #AttrName, DefaultValue)
