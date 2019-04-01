@@ -28,13 +28,6 @@ namespace ot {
         std::string m_message;
     };
 
-    struct BaseType
-    {
-        virtual ~BaseType(){}
-        virtual void addAttribute(std::string name, std::string value) = 0;
-        virtual void removeAttribute(const std::string& name) = 0;
-    };
-
     struct BaseAttribute
     {
         BaseAttribute(std::string name, std::string value)
@@ -44,22 +37,6 @@ namespace ot {
 
         std::string name;
         std::string value;
-    };
-
-    struct AttributeAccessor : public BaseAttribute
-    {
-        AttributeAccessor(BaseType* type, std::string name, std::string value)
-            : BaseAttribute(name, value),
-              type(type)
-        {
-            type->addAttribute(name, value);
-        }
-
-        ~AttributeAccessor() {
-            type->removeAttribute(name);
-        }
-
-        BaseType* type;
     };
 
     struct Attribute : public BaseAttribute
@@ -81,7 +58,7 @@ namespace ot {
     };
 
 
-    struct Type : public BaseType
+    struct Type
     {
         std::map<std::string, Attribute> attributes;
         std::vector<BaseObject*> instanced_objects;
@@ -103,14 +80,14 @@ namespace ot {
             );
         }
 
-        virtual void addAttribute(std::string name, std::string value) override {
+        void addAttribute(std::string name, std::string value) {
             attributes.insert({ name, Attribute(name, value) });
             for (auto obj : instanced_objects) {
                 obj->attributes.insert({ name, Attribute(name, value) });
             }
         }
 
-        virtual void removeAttribute(const std::string& name) override {
+        void removeAttribute(const std::string& name) {
             auto it = attributes.find(name);
             if (it != attributes.end()) {
                 attributes.erase(it);
@@ -123,6 +100,21 @@ namespace ot {
             }
         }
     };
+
+	struct AttributeAccessor : public BaseAttribute
+	{
+		AttributeAccessor(Type* type, std::string name, std::string value)
+			: BaseAttribute(name, value),
+			type(type) {
+			type->addAttribute(name, value);
+		}
+
+		~AttributeAccessor() {
+			type->removeAttribute(name);
+		}
+
+		Type* type;
+	};
 
 
     template <typename TypeName>
