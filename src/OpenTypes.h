@@ -157,9 +157,15 @@ namespace ot {
 #define OT_TYPE(TypeName) \
     struct TypeName : public ot::Type \
     { \
-        virtual ~TypeName(){}\
+      \
     }; \
     ot::types.insert({ #TypeName, std::make_unique<TypeName>() })
+
+#define OT_IS_TYPE(TypeName) \
+	(ot::types.find(#TypeName) != ot::types.end())
+
+#define OT_GET_TYPE(TypeName) \
+	(*ot::types.find(#TypeName)->second)
 
 #define OT_OBJECT(TypeName) \
     ot::Object<TypeName>(ot::types.find(#TypeName)->second.get())
