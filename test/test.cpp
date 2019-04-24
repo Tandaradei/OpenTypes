@@ -58,7 +58,7 @@ SCENARIO("attributes", "[attribute]") {
         TYPE(Person);
         Person p;
         WHEN("an attribute is added") {
-            ATTR1(name, Person, std::string)
+            //ATTR1(name, Person, std::string)
         }
     }
 }

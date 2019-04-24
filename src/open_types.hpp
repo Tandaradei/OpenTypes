@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <functional>
 #include <map>
+#include <string>
 
 namespace ot {
     template <typename T>
@@ -98,32 +99,69 @@ namespace ot {
     struct Type {
     };
 
-    static const Reference<Type> nil(nullptr);
+	static const Reference<Type> nil(nullptr);
 
-    Reference<Type> empty() {
-        return Reference<Type>(true);
-    }
+	Reference<Type> empty() {
+		return Reference<Type>(true);
+	}
 
-    template <typename T, typename A>
-    A attribute(T obj, std::function<A (const T&)> func) {
-        func(obj);
-    }
+	struct BaseType {
+		BaseType() : id(counter++) {}
+		virtual std::string toString() { return ""; }
+		int getId() { return id; }
+	private:
+		static int counter;
+		const int id;
+	};
+
+	int BaseType::counter = 0;
+
+	template <typename AttrType>
+	struct AttributeAccessor {
+
+		static AttributeAccessor<AttrType>* get(const std::string& name) {
+			auto it = attributes.find(name);
+			if (it != attributes.end()) {
+				return it->second.get();
+			}
+			else {
+				auto attr = std::make_shared<AttributeAccessor<AttrType>>();
+				attributes.emplace(name, attr);
+				return attr.get();
+			}
+		}
+
+		void addType(const std::string& typeName) {
+			if (values.find(typeName) == values.end()) {
+				values.emplace(typeName, std::map<int, AttrType>());
+			}
+		}
+
+		AttrType getValueFor(BaseType* obj) {
+			auto itType = values.find(obj->toString());
+			if (itType != values.end()) {
+				const auto& innerMap = itType->second;
+				auto itValue = innerMap.find(obj->getId());
+				if (itValue != innerMap.end()) {
+					return itValue->second;
+				}
+			}
+			return AttrType();
+		}
+
+	private:
+		static std::map<std::string, std::shared_ptr<AttributeAccessor<AttrType>>> attributes;
+		std::map<std::string, std::map<int, AttrType>> values;
+	};
 }
-
 #define TYPE(TypeName) \
-    struct TypeName : public ot::Reference<ot::Type> { \
-        TypeName() : ot::Reference<ot::Type>() {} \
+    struct TypeName : public ot::Reference<ot::Type>, public ot::BaseType { \
+        TypeName() : ot::Reference<ot::Type>(), ot::BaseType() {} \
         TypeName(const ot::Reference<ot::Type>& other) : ot::Reference<ot::Type>(other){} \
+		virtual std::string toString() override { return #TypeName; }  \
     };
 
 #define ATTR1(AttrName, TypeName, AttrType) \
-    std::map<TypeName, AttrType> TypeName ##_ ##AttrName; \
-    AttrType AttrName(const TypeName& object) { \
-        auto it = TypeName ##_ ##AttrName.find(object); \
-        if(it != TypeName ##_ ##AttrName.end()) { \
-            return it->second; \
-        } \
-        return AttrType(); \
-    }
+	ot::AttributeAccessor<AttrType>::get(#AttrName)->addType(#TypeName); 
 
 #endif // OPEN_TYPES_HPP
