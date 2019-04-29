@@ -10,9 +10,11 @@ target_include_directories(Catch INTERFACE external/catch.hpp)
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/open_types.hpp
+    src/my_types.hpp
 )
 
 add_executable(${PROJECT_NAME}_tests
+    test/test_types.hpp
     test/test.cpp
 )
 

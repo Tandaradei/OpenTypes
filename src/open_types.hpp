@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <memory>
 
 namespace ot {
     template <typename T>
@@ -105,63 +106,38 @@ namespace ot {
 		return Reference<Type>(true);
 	}
 
-	struct BaseType {
-		BaseType() : id(counter++) {}
-		virtual std::string toString() { return ""; }
-		int getId() { return id; }
-	private:
-		static int counter;
-		const int id;
-	};
-
-	int BaseType::counter = 0;
-
-	template <typename AttrType>
-	struct AttributeAccessor {
-
-		static AttributeAccessor<AttrType>* get(const std::string& name) {
-			auto it = attributes.find(name);
-			if (it != attributes.end()) {
-				return it->second.get();
-			}
-			else {
-				auto attr = std::make_shared<AttributeAccessor<AttrType>>();
-				attributes.emplace(name, attr);
-				return attr.get();
-			}
-		}
-
-		void addType(const std::string& typeName) {
-			if (values.find(typeName) == values.end()) {
-				values.emplace(typeName, std::map<int, AttrType>());
-			}
-		}
-
-		AttrType getValueFor(BaseType* obj) {
-			auto itType = values.find(obj->toString());
-			if (itType != values.end()) {
-				const auto& innerMap = itType->second;
-				auto itValue = innerMap.find(obj->getId());
-				if (itValue != innerMap.end()) {
-					return itValue->second;
-				}
-			}
-			return AttrType();
-		}
-
-	private:
-		static std::map<std::string, std::shared_ptr<AttributeAccessor<AttrType>>> attributes;
-		std::map<std::string, std::map<int, AttrType>> values;
-	};
 }
 #define TYPE(TypeName) \
-    struct TypeName : public ot::Reference<ot::Type>, public ot::BaseType { \
-        TypeName() : ot::Reference<ot::Type>(), ot::BaseType() {} \
+    struct TypeName : public ot::Reference<ot::Type> { \
+        TypeName() : ot::Reference<ot::Type>() {} \
         TypeName(const ot::Reference<ot::Type>& other) : ot::Reference<ot::Type>(other){} \
-		virtual std::string toString() override { return #TypeName; }  \
+        template <typename T> \
+        T operator[](T (*func)(TypeName)) const { return func(*this); }  \
+        template <typename T> \
+        void operator()(void (*func)(TypeName, const T&), const T& value) const { func(*this, value); }  \
     };
 
 #define ATTR1(AttrName, TypeName, AttrType) \
-	ot::AttributeAccessor<AttrType>::get(#AttrName)->addType(#TypeName); 
+    static std::map<TypeName, AttrType> TypeName ##_ ##AttrName; \
+    AttrType AttrName(TypeName object) { \
+        auto& attr_map = TypeName ##_ ##AttrName; \
+        auto it = attr_map.find(object); \
+        if(it != attr_map.cend()) { \
+            return it->second; \
+        } \
+        else { \
+            return AttrType(); \
+        } \
+    } \
+    void AttrName(TypeName object, const AttrType& value) { \
+        auto& attr_map = TypeName ##_ ##AttrName; \
+        auto it = attr_map.find(object); \
+        if(it != attr_map.cend()) { \
+            it->second = value; \
+        } \
+        else { \
+            attr_map.emplace(object, value); \
+        } \
+    }
 
 #endif // OPEN_TYPES_HPP

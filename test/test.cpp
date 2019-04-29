@@ -1,11 +1,10 @@
-#include "../src/open_types.hpp"
+#include "test_types.hpp"
 
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "../external/catch.hpp"
 
 SCENARIO("type and object creation", "[type, object]") {
-	GIVEN("a new type") {
-        TYPE(Person);
+    GIVEN("a type 'Person'") {
         WHEN("a type variable is default created") {
             Person p;
             THEN("p is nil") {
@@ -54,8 +53,7 @@ SCENARIO("type and object creation", "[type, object]") {
 
 
 SCENARIO("attributes", "[attribute]") {
-    GIVEN("a type and an object of this type") {
-        TYPE(Person);
+    GIVEN("a type 'Person' and an object of this type") {
         Person p;
         WHEN("an attribute is added") {
             //ATTR1(name, Person, std::string)

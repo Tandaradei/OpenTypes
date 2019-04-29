@@ -1,19 +1,15 @@
 #include <iostream>
 
-#include "open_types.hpp"
-
+#include "my_types.hpp"
 
 int main() {
-	TYPE(Person)
-	TYPE(Person2)
-
-	Person p;
-	ATTR1(name, Person, std::string)
-
-	ot::AttributeAccessor<std::string>* name = ot::AttributeAccessor<std::string>::get("Person");
-	name->getValueFor(&p);
-
-	std::getchar();
+    Person p;
+    std::cout << "name of p: " << p[name] << std::endl;
+    std::cout << "age of p: " << age(p) << std::endl;
+    p(name, std::string("Hans"));
+    age(p, 37);
+    std::cout << "name of p: " << p[name] << std::endl;
+    std::cout << "age of p: " << age(p) << std::endl;
 
 	return 0;
 }
