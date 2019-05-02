@@ -1,2 +1,2 @@
 # OpenTypes
-Library for runtime defined types in C++
+Library for open types in C++
