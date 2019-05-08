@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace ot {
     template <typename T>
@@ -14,7 +15,7 @@ namespace ot {
         Reference(bool create = false)
         : object(create ? new T() : nullptr),
           refCount(new unsigned int),
-          shouldDeleteOnDestruct(true)
+          shouldDeleteOnDestruct(create)
         {
             *refCount = 1;
         }
@@ -48,7 +49,7 @@ namespace ot {
         : object(other.get()),
           refCount(other.getRefCountPtr()) {
             if(refCount) {
-                *refCount += 1;
+                (*refCount)++;
             }
         }
 
@@ -59,22 +60,23 @@ namespace ot {
         : object(other.get()),
           refCount(other.getRefCountPtr()) {
             if(refCount) {
-                *refCount++;
+                (*refCount)++;
             }
         }
 
         Reference& operator=(const Reference& other) {
             if(refCount) {
-                if(*--refCount == 0) {
+                if(--(*refCount) == 0) {
                     if(shouldDeleteOnDestruct && object != nullptr) {
                         delete object;
                     }
+					delete refCount;
                 }
             }
             object = other.object;
             refCount = other.refCount;
             if(refCount) {
-                *refCount++;
+                (*refCount)++;
             }
             return *this;
         }
@@ -106,22 +108,39 @@ namespace ot {
 		return Reference<Type>(true);
 	}
 
+	template <typename T>
+	class vector : public std::vector<T> {
+	public:
+		T operator[](const size_t i) {
+			if (size() > i) {
+				return at(i);
+			}
+			else {
+				return T();
+			}
+		}
+	};
+
 }
 #define TYPE(TypeName) \
     struct TypeName : public ot::Reference<ot::Type> { \
         TypeName() : ot::Reference<ot::Type>() {} \
         TypeName(const ot::Reference<ot::Type>& other) : ot::Reference<ot::Type>(other){} \
         template <typename T> \
-        T operator[](T (*func)(TypeName)) const { return func(*this); }  \
+        T operator[](T (*read)(TypeName)) const { return read(*this); } /* Read attribute value */ \
         template <typename T> \
-        void operator()(void (*func)(TypeName, const T&), const T& value) const { func(*this, value); }  \
+        TypeName& operator()(void (*write)(TypeName, T), T value) { if(*this) { write(*this, value); } return *this; } /* Write attribute / Add value to attribute list */ \
+		template <typename T> \
+		TypeName& operator()(void (*writeAt)(TypeName, size_t, T), size_t i, T value) { if(*this) { writeAt(*this, i, value); } return *this; }  /* Write value to position in attribute list */  \
+		void operator-=(void (*remove)(TypeName, TypeName*)) const { remove(*this, nullptr); }  /* Remove attribute value */  \
     };
 
 #define ATTR1(AttrName, TypeName, AttrType) \
-    static std::map<TypeName, AttrType> TypeName ##_ ##AttrName; \
+    static std::map<ot::Type*, AttrType> TypeName ##_ ##AttrName; \
+	/* Read */ \
     AttrType AttrName(TypeName object) { \
         auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object); \
+        auto it = attr_map.find(object.get()); \
         if(it != attr_map.cend()) { \
             return it->second; \
         } \
@@ -129,14 +148,56 @@ namespace ot {
             return AttrType(); \
         } \
     } \
-    void AttrName(TypeName object, const AttrType& value) { \
+	/* Remove */ \
+	void AttrName(TypeName object, TypeName* deleter) { \
+		TypeName ##_ ##AttrName.erase(object.get()); \
+	} \
+	/* Write */ \
+    void AttrName(TypeName object, AttrType value) { \
         auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object); \
+        auto it = attr_map.find(object.get()); \
         if(it != attr_map.cend()) { \
-            it->second = value; \
+            it->second = std::move(value); \
         } \
         else { \
-            attr_map.emplace(object, value); \
+            attr_map.emplace(object.get(), std::move(value)); \
+        } \
+    }
+
+#define ATTRN(AttrName, TypeName, AttrType) \
+	static std::map<ot::Type*, ot::vector<AttrType>> TypeName ##_ ##AttrName; \
+	/* Read complete list */ \
+    ot::vector<AttrType> AttrName(TypeName object) { \
+        auto& attr_map = TypeName ##_ ##AttrName; \
+        auto it = attr_map.find(object.get()); \
+        if(it != attr_map.cend()) { \
+			return it->second; \
+        } \
+        else { \
+            return ot::vector<AttrType>(); \
+        } \
+    } \
+	/* Remove */ \
+	void AttrName(TypeName object, TypeName* deleter) { \
+		TypeName ##_ ##AttrName.erase(object.get()); \
+	} \
+	/* Write item at end*/ \
+    void AttrName(TypeName object, AttrType value) { \
+        auto& attr_map = TypeName ##_ ##AttrName; \
+        auto it = attr_map.find(object.get()); \
+        if(it == attr_map.cend()) { \
+           it = attr_map.emplace(object.get(), ot::vector<AttrType>()).first; \
+        } \
+		it->second.emplace_back(std::move(value)); \
+    } \
+	/* Write item at position*/ \
+    void AttrName(TypeName object, size_t i, AttrType value) { \
+        auto& attr_map = TypeName ##_ ##AttrName; \
+        auto it = attr_map.find(object.get()); \
+        if(it != attr_map.cend()) { \
+			if(it->second.size() > i) { \
+				it->second.at(i) = std::move(value); \
+			} \
         } \
     }
 
