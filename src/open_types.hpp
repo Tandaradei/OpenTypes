@@ -112,8 +112,8 @@ namespace ot {
 	class vector : public std::vector<T> {
 	public:
 		T operator[](const size_t i) {
-			if (size() > i) {
-				return at(i);
+            if (this->size() > i) {
+                return this->at(i);
 			}
 			else {
 				return T();
