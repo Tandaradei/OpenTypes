@@ -1,54 +1,33 @@
 #include <iostream>
 
-#include "Person.hpp"
+#include "src/Types/Person.extended.hpp"
 
-void printSkills(Person p) {
-	std::cout << "skills of " << p[name] << ": " << std::endl;
-	for (auto skill : p[skills]) {
-		std::cout << skill[name] << ": " << skill[value] * 100.0f << "%" << std::endl;
-	}
-}
-
-void printTags(Person p) {
-	std::cout << "tags of " << p[name] << ": " << std::endl;
-	for (auto tag : p[tags]) {
-		std::cout << tag << std::endl;
-	}
-}
-
-Skill skill(Person p) {
-	return p[skills][0];
-}
-
-void tag(Person p, std::string value) {
-	p(tags, 0, value);
-}
+#include "Helper.hpp"
+#include "Helper2.hpp"
 
 int main() {
-    Person p = ot::empty();
-	Person p2 = ot::empty();
-    std::cout << "name of p: " << name(p) << std::endl;
-    std::cout << "age of p: " << age(p) << std::endl;
-    p(name, std::string("Hans"))(age, 37);
-    std::cout << "name of p: " << name(p) << std::endl;
-    std::cout << "age of p: " << age(p) << std::endl;
-	printSkills(p);
-	p(skills, Skill(ot::empty()));
-	p[skills][0](name, std::string("Java"))(value, 0.1f);
-	p(skills, Skill(true));
-	p[skills][1](name, std::string("C++"))(value, 0.35f);
-	p(skills, Skill(true));
-	printSkills(p);
-	p(tags, std::string("Software Engineer"))(tags, std::string("Software Architect"));
-	printTags(p);
-	printSkills(p2);
-	p(tag, std::string("Quality Assurance"));
-	printTags(p);
-	std::cout << "get undefined skill name from skills of p: " << p[skills][4][name] << std::endl;
+    Person hans = ot::empty(); // Create Person object
+	Person hans_ref = hans; // Create Person variable referencing hans
+    std::cout << "name of hans: " << hans[name] << std::endl; // Read empty attribute name of hans
+    std::cout << "age of hans: " << age(hans) << std::endl; // Read empty attribute age of hans
+	hans(name, std::string("Hans"))(age, 37);  // Set attributes name and age of hans
+    std::cout << "name of hans: " << name(hans) << std::endl; // Read set attribute name of hans
+    std::cout << "age of hans: " << hans[age] << std::endl; // Read set attribute age of hans
+	printSkills(hans); // Read empty list of attributes
+	hans(skills, Skill(ot::empty())); // Add new value to attribute list
+	hans_ref[skills][0](name, std::string("Java"))(value, 0.1f); // Set values to new list item using reference
+	hans_ref(skills, Skill(true)); // Add new value to attribute list using reference
+	hans_ref[skills][1](name, std::string("C++"))(value, 0.35f); // Set values to new list item using reference
+	hans(skills, Skill(true)); // Add new value to attribute list
+	printSkills(hans_ref); // Read filled list of attributes using reference
+	hans(tags, std::string("Software Engineer"))(tags, std::string("Software Architect")); // Add two values to attribute list
+	printTags(hans_ref); // Read filled list of attributes using reference
+	hans(tag, std::string("Quality Assurance")); // Update a value of attribute list using helper function
+	printTags(hans); // Read filled list of attributes 
+	std::cout << "get undefined skill name from skills of hans: " << hans[skills][4][name] << std::endl; // Try to read undefined item of attribute list
+	std::cout << "first skill of " << hans[name] << ": " << hans_ref[skill][name] << std::endl; // Read attribute of item in attribute list using reference and helper function
+	hans -= name; // Remove attribute value
+	std::cout << "name of hans: " << hans[name] << std::endl; // Read removed attribute
 
-	std::cout << "first skill of " << p[name] << ": " << p[skill][name] << std::endl;
-
-	p -= name;
-	std::cout << "name of p: " << p[name] << std::endl;
 	return 0;
 }
