@@ -99,11 +99,20 @@ namespace ot {
         bool shouldDeleteOnDestruct = false;
     };
 
+	/**
+	Base type for all custom types
+	*/
     struct Type {
     };
 
+	/**
+	Reference to nullptr
+	*/
 	static const Reference<Type> nil(nullptr);
 
+	/**
+	Returns a reference to a new created object
+	*/
     inline Reference<Type> empty() {
 		return Reference<Type>(true);
 	}
@@ -121,23 +130,70 @@ namespace ot {
 		}
 	};
 
+	/**
+	Dummy class to differentiate between function declarations
+	*/
+	struct AttributeDeleter {
+	};
+
+	template <typename O, typename T>
+	struct ItemDeleter {
+		void (*remove)(O, std::function<std::pair<bool, bool>(T, size_t)>);
+		std::function<std::pair<bool, bool>(T, size_t)> shouldRemove;
+	};
+
 }
 #define TYPE(TypeName) \
     struct TypeName : public ot::Reference<ot::Type> { \
         TypeName() : ot::Reference<ot::Type>() {} \
         TypeName(const ot::Reference<ot::Type>& other) : ot::Reference<ot::Type>(other){} \
+		/* Write attribute  on construction */ \
         template <typename T> \
-        TypeName(void (*write)(TypeName, T), T value) { if(*this) { write(*this, value); } } /* Write attribute / Add value to attribute list */ \
+        TypeName(void (*write)(TypeName, T), T value) { \
+			write(*this, value); \
+		} \
+		/* Read attribute value */ \
         template <typename T> \
-        T operator[](T (*read)(TypeName)) const { return read(*this); } /* Read attribute value */ \
+        T operator[](T (*read)(TypeName)) const { \
+			return read(*this); \
+		} \
+		/* Write attribute / Add value to attribute list */ \
         template <typename T> \
-        TypeName& operator()(void (*write)(TypeName, T), T value) { if(*this) { write(*this, value); } return *this; } /* Write attribute / Add value to attribute list */ \
+        TypeName& operator()(void (*write)(TypeName, T), T value) { \
+			write(*this, value); \
+			return *this; \
+		} \
+		/* Write value to position in attribute list */ \
 		template <typename T> \
-		TypeName& operator()(void (*writeAt)(TypeName, size_t, T), size_t i, T value) { if(*this) { writeAt(*this, i, value); } return *this; }  /* Write value to position in attribute list */  \
-		void operator-=(void (*remove)(TypeName, TypeName*)) const { remove(*this, nullptr); }  /* Remove attribute value */  \
+		TypeName& operator()(void (*writeAt)(TypeName, size_t, T), size_t i, T value) { \
+			writeAt(*this, i, value); \
+			return *this; \
+		} \
+		/* Remove attribute value */ \
+		void operator-=(void (*remove)(TypeName, ot::AttributeDeleter)) { \
+			remove(*this, {}); \
+		} \
+		/* Remove value from attribute list */ \
+		template <typename T> \
+		void operator-=(ot::ItemDeleter<TypeName, T> itemDeleter) { \
+			itemDeleter.remove(*this, itemDeleter.shouldRemove); \
+		} \
     };
 
+#define REMOVE_VALUE(AttrName, TypeName, AttrType, Value) \
+	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ value == Value, false }; } };
+
+#define REMOVE_VALUE_ALL(AttrName, TypeName, AttrType, Value) \
+	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ value == Value, true }; } };
+
+#define REMOVE_ALL(AttrName, TypeName, AttrType) \
+	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ true, true }; } };
+
+#define REMOVE_INDEX(AttrName, TypeName, AttrType, Index) \
+	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ index == Index, false }; } };
+
 #define ATTR1(AttrName, TypeName, AttrType) \
+	/* Attribute map */ \
     inline std::map<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
         static std::map<ot::Type*, AttrType> attrMap; \
         return attrMap; \
@@ -146,31 +202,33 @@ namespace ot {
     inline AttrType AttrName(TypeName object) { \
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
-        if(it != attrMap.cend()) { \
+        if (it != attrMap.cend()) { \
             return it->second; \
         } \
         else { \
             return AttrType(); \
         } \
     } \
-	/* Remove */ \
-    inline void AttrName(TypeName object, TypeName*) { \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
-	} \
 	/* Write */ \
     inline void AttrName(TypeName object, AttrType value) { \
+		if (!object) { return; } /* Don't write on nil objects */ \
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
-        if(it != attrMap.cend()) { \
+        if (it != attrMap.cend()) { \
             it->second = std::move(value); \
         } \
         else { \
             attrMap.emplace(object.get(), std::move(value)); \
         } \
-    }
+    } \
+	/* Remove */ \
+	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        attrMap.erase(object.get()); \
+	} 
 
 #define ATTRN(AttrName, TypeName, AttrType) \
+	/* Attribute map */ \
     inline std::map<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
         static std::map<ot::Type*, ot::vector<AttrType>> attrMap; \
         return attrMap; \
@@ -179,36 +237,58 @@ namespace ot {
     inline ot::vector<AttrType> AttrName(TypeName object) { \
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
-        if(it != attrMap.cend()) { \
+        if (it != attrMap.cend()) { \
 			return it->second; \
         } \
         else { \
             return ot::vector<AttrType>(); \
         } \
     } \
-	/* Remove */ \
-    inline void AttrName(TypeName object, TypeName*) { \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
-	} \
 	/* Write item at end*/ \
     inline void AttrName(TypeName object, AttrType value) { \
+		if (!object) { return; } /* Don't write on nil objects */ \
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
-        if(it == attrMap.cend()) { \
+        if (it == attrMap.cend()) { \
            it = attrMap.emplace(object.get(), ot::vector<AttrType>()).first; \
         } \
 		it->second.emplace_back(std::move(value)); \
     } \
 	/* Write item at position*/ \
     inline void AttrName(TypeName object, size_t i, AttrType value) { \
+		if (!object) { return; } /* Don't write on nil objects */ \
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
-        if(it != attrMap.cend()) { \
+        if (it != attrMap.cend()) { \
 			if(it->second.size() > i) { \
 				it->second.at(i) = std::move(value); \
 			} \
         } \
-    }
+    } \
+	/* Remove */ \
+	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        attrMap.erase(object.get()); \
+	} \
+	/* Remove item */ \
+	inline void AttrName(TypeName object, std::function<std::pair<bool, bool> (AttrType value, size_t index)> remover) { \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(object.get()); \
+        if (it != attrMap.cend()) { \
+			auto& values = it->second; \
+			size_t index = 0; \
+			for (auto v_it = begin(values); v_it != end(values);) { \
+				auto result = remover(*v_it, index); \
+				if (result.first) { \
+					v_it = values.erase(v_it); \
+					if (!result.second) { \
+						break; \
+					} \
+				} \
+				else { v_it++; } \
+				index++; \
+			} \
+		} \
+	} 
 
 #endif // OPEN_TYPES_HPP
