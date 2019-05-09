@@ -24,7 +24,6 @@ add_executable(${PROJECT_NAME}_tests
     test/Types/Skill.hpp
     test/Types/Person.hpp
     test/main.cpp
-    test/Config.hpp
     test/Types.test.cpp
     test/Attributes.test.cpp
 )
