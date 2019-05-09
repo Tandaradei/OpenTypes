@@ -5,7 +5,7 @@
 
 void printSkills(Person p) {
 	std::cout << "skills of " << p[name] << ": " << std::endl;
-	for (auto skill : p[skills]) {
+    for (auto skill : p[skills]) {
 		std::cout << skill[name] << ": " << skill[value] * 100.0f << "%" << std::endl;
 	}
 }

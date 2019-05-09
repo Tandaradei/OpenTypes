@@ -104,7 +104,7 @@ namespace ot {
 
 	static const Reference<Type> nil(nullptr);
 
-	Reference<Type> empty() {
+    inline Reference<Type> empty() {
 		return Reference<Type>(true);
 	}
 
@@ -127,6 +127,8 @@ namespace ot {
         TypeName() : ot::Reference<ot::Type>() {} \
         TypeName(const ot::Reference<ot::Type>& other) : ot::Reference<ot::Type>(other){} \
         template <typename T> \
+        TypeName(void (*write)(TypeName, T), T value) { if(*this) { write(*this, value); } } /* Write attribute / Add value to attribute list */ \
+        template <typename T> \
         T operator[](T (*read)(TypeName)) const { return read(*this); } /* Read attribute value */ \
         template <typename T> \
         TypeName& operator()(void (*write)(TypeName, T), T value) { if(*this) { write(*this, value); } return *this; } /* Write attribute / Add value to attribute list */ \
@@ -136,12 +138,15 @@ namespace ot {
     };
 
 #define ATTR1(AttrName, TypeName, AttrType) \
-    static std::map<ot::Type*, AttrType> TypeName ##_ ##AttrName; \
+    inline std::map<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
+        static std::map<ot::Type*, AttrType> attrMap; \
+        return attrMap; \
+    } \
 	/* Read */ \
-    AttrType AttrName(TypeName object) { \
-        auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object.get()); \
-        if(it != attr_map.cend()) { \
+    inline AttrType AttrName(TypeName object) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(object.get()); \
+        if(it != attrMap.cend()) { \
             return it->second; \
         } \
         else { \
@@ -149,28 +154,32 @@ namespace ot {
         } \
     } \
 	/* Remove */ \
-	void AttrName(TypeName object, TypeName* deleter) { \
-		TypeName ##_ ##AttrName.erase(object.get()); \
+    inline void AttrName(TypeName object, TypeName*) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        attrMap.erase(object.get()); \
 	} \
 	/* Write */ \
-    void AttrName(TypeName object, AttrType value) { \
-        auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object.get()); \
-        if(it != attr_map.cend()) { \
+    inline void AttrName(TypeName object, AttrType value) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(object.get()); \
+        if(it != attrMap.cend()) { \
             it->second = std::move(value); \
         } \
         else { \
-            attr_map.emplace(object.get(), std::move(value)); \
+            attrMap.emplace(object.get(), std::move(value)); \
         } \
     }
 
 #define ATTRN(AttrName, TypeName, AttrType) \
-	static std::map<ot::Type*, ot::vector<AttrType>> TypeName ##_ ##AttrName; \
+    inline std::map<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
+        static std::map<ot::Type*, ot::vector<AttrType>> attrMap; \
+        return attrMap; \
+    } \
 	/* Read complete list */ \
-    ot::vector<AttrType> AttrName(TypeName object) { \
-        auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object.get()); \
-        if(it != attr_map.cend()) { \
+    inline ot::vector<AttrType> AttrName(TypeName object) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(object.get()); \
+        if(it != attrMap.cend()) { \
 			return it->second; \
         } \
         else { \
@@ -178,23 +187,24 @@ namespace ot {
         } \
     } \
 	/* Remove */ \
-	void AttrName(TypeName object, TypeName* deleter) { \
-		TypeName ##_ ##AttrName.erase(object.get()); \
+    inline void AttrName(TypeName object, TypeName*) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        attrMap.erase(object.get()); \
 	} \
 	/* Write item at end*/ \
-    void AttrName(TypeName object, AttrType value) { \
-        auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object.get()); \
-        if(it == attr_map.cend()) { \
-           it = attr_map.emplace(object.get(), ot::vector<AttrType>()).first; \
+    inline void AttrName(TypeName object, AttrType value) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(object.get()); \
+        if(it == attrMap.cend()) { \
+           it = attrMap.emplace(object.get(), ot::vector<AttrType>()).first; \
         } \
 		it->second.emplace_back(std::move(value)); \
     } \
 	/* Write item at position*/ \
-    void AttrName(TypeName object, size_t i, AttrType value) { \
-        auto& attr_map = TypeName ##_ ##AttrName; \
-        auto it = attr_map.find(object.get()); \
-        if(it != attr_map.cend()) { \
+    inline void AttrName(TypeName object, size_t i, AttrType value) { \
+        auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(object.get()); \
+        if(it != attrMap.cend()) { \
 			if(it->second.size() > i) { \
 				it->second.at(i) = std::move(value); \
 			} \

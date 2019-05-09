@@ -1,1 +1,0 @@
-#define SEPERATE_TEST_FILES 0

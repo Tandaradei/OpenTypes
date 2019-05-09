@@ -1,6 +1,5 @@
 #include "external/catch.hpp"
 
-#if SEPERATE_TEST_FILES
 #include "test/Types/Person.hpp"
 
 SCENARIO("attributes", "[attribute]") {
@@ -21,5 +20,3 @@ SCENARIO("attributes", "[attribute]") {
 		}
 	}
 }
-
-#endif // SEPERATE_TEST_FILES

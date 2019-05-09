@@ -13,16 +13,20 @@ target_include_directories(Catch INTERFACE external/catch.hpp)
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/open_types.hpp
-	src/Types/Skill.hpp
+    src/Types/Skill.hpp
     src/Types/Person.hpp
+    src/Types/Person.extended.hpp
+    src/Helper.hpp
+    src/Helper2.hpp
 )
 
 add_executable(${PROJECT_NAME}_tests
     test/Types/Skill.hpp
     test/Types/Person.hpp
     test/main.cpp
-	test/Types.test.cpp
-	test/Attributes.test.cpp
+    test/Config.hpp
+    test/Types.test.cpp
+    test/Attributes.test.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_tests Catch)

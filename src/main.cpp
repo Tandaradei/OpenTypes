@@ -14,8 +14,8 @@ int main() {
     std::cout << "name of hans: " << name(hans) << std::endl; // Read set attribute name of hans
     std::cout << "age of hans: " << hans[age] << std::endl; // Read set attribute age of hans
 	printSkills(hans); // Read empty list of attributes
-	hans(skills, Skill(ot::empty())); // Add new value to attribute list
-	hans_ref[skills][0](name, std::string("Java"))(value, 0.1f); // Set values to new list item using reference
+    hans(skills, Skill(name, std::string("Java"))(value, 0.1f)); // Add new value to attribute list
+    //hans_ref[skills][0]; // Set values to new list item using reference
 	hans_ref(skills, Skill(true)); // Add new value to attribute list using reference
 	hans_ref[skills][1](name, std::string("C++"))(value, 0.35f); // Set values to new list item using reference
 	hans(skills, Skill(true)); // Add new value to attribute list
@@ -27,6 +27,7 @@ int main() {
 	std::cout << "get undefined skill name from skills of hans: " << hans[skills][4][name] << std::endl; // Try to read undefined item of attribute list
 	std::cout << "first skill of " << hans[name] << ": " << hans_ref[skill][name] << std::endl; // Read attribute of item in attribute list using reference and helper function
 	hans -= name; // Remove attribute value
+    //hans[skills] -= skill1;
 	std::cout << "name of hans: " << hans[name] << std::endl; // Read removed attribute
 
 	return 0;
