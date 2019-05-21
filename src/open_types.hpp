@@ -164,7 +164,8 @@ namespace ot {
         TypeName(const ot::Reference<ot::Type>& other) : ot::Reference<ot::Type>(other){} \
 		/* Write attribute  on construction */ \
         template <typename T> \
-        TypeName(void (*write)(TypeName, T), T value) { \
+        TypeName(void (*write)(TypeName, T), T value) \
+        : ot::Reference<ot::Type>(true) { \
 			write(*this, value); \
 		} \
 		/* Read attribute value */ \
