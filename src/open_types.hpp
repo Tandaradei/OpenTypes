@@ -3,7 +3,7 @@
 
 #include <type_traits>
 #include <functional>
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <memory>
 #include <vector>
@@ -15,14 +15,15 @@ namespace ot {
         Reference(bool create = false)
         : object(create ? new T() : nullptr),
           refCount(new unsigned int),
-          shouldDeleteOnDestruct(create)
+          shouldDeleteOnDestruct(new bool(create))
         {
-            *refCount = 1;
+            *refCount = create ? 1 : 0;
         }
 
         ~Reference() {
-            if(--(*refCount) == 0) {
-                if(shouldDeleteOnDestruct && object) {
+			(*refCount)--;
+            if(*refCount == 0) {
+                if(*shouldDeleteOnDestruct && object) {
                     delete object;
                 }
                 if(refCount) {
@@ -39,15 +40,21 @@ namespace ot {
             return refCount;
         }
 
+		bool* getShouldDeleteOnDestruct() const {
+			return shouldDeleteOnDestruct;
+		}
+
         Reference(T* ptr)
         : object(ptr),
-          refCount(new unsigned int) {
+          refCount(new unsigned int),
+		  shouldDeleteOnDestruct(new bool(false)) {
             *refCount = 1;
         }
 
         Reference(const Reference& other)
         : object(other.get()),
-          refCount(other.getRefCountPtr()) {
+          refCount(other.getRefCountPtr()),
+		  shouldDeleteOnDestruct(other.getShouldDeleteOnDestruct()) {
             if(refCount) {
                 (*refCount)++;
             }
@@ -58,7 +65,8 @@ namespace ot {
         >
         Reference(const Reference<B>& other)
         : object(other.get()),
-          refCount(other.getRefCountPtr()) {
+          refCount(other.getRefCountPtr()),
+		  shouldDeleteOnDestruct(other.getShouldDeleteOnDestruct()) {
             if(refCount) {
                 (*refCount)++;
             }
@@ -67,7 +75,7 @@ namespace ot {
         Reference& operator=(const Reference& other) {
             if(refCount) {
                 if(--(*refCount) == 0) {
-                    if(shouldDeleteOnDestruct && object != nullptr) {
+                    if(*shouldDeleteOnDestruct && object != nullptr) {
                         delete object;
                     }
 					delete refCount;
@@ -75,6 +83,7 @@ namespace ot {
             }
             object = other.object;
             refCount = other.refCount;
+			shouldDeleteOnDestruct = other.shouldDeleteOnDestruct;
             if(refCount) {
                 (*refCount)++;
             }
@@ -96,13 +105,25 @@ namespace ot {
     protected:
         T* object;
         unsigned int* refCount;
-        bool shouldDeleteOnDestruct = false;
+        bool* shouldDeleteOnDestruct = false;
     };
+
+	/**
+	Dummy class to differentiate between function declarations
+	*/
+	struct AttributeDeleter {
+	};
 
 	/**
 	Base type for all custom types
 	*/
     struct Type {
+		std::vector<std::function<void(Type*)>> removers;
+		~Type() {
+			for (auto remover : removers) {
+				remover(this);
+			}
+		}
     };
 
 	/**
@@ -128,12 +149,6 @@ namespace ot {
 				return T();
 			}
 		}
-	};
-
-	/**
-	Dummy class to differentiate between function declarations
-	*/
-	struct AttributeDeleter {
 	};
 
 	template <typename O, typename T>
@@ -194,8 +209,8 @@ namespace ot {
 
 #define ATTR1(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
-    inline std::map<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
-        static std::map<ot::Type*, AttrType> attrMap; \
+    inline std::unordered_map<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
+        static std::unordered_map<ot::Type*, AttrType> attrMap; \
         return attrMap; \
     } \
 	/* Read */ \
@@ -209,6 +224,12 @@ namespace ot {
             return AttrType(); \
         } \
     } \
+	/* Remove */ \
+	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
+	\
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        attrMap.erase(object.get()); \
+	} \
 	/* Write */ \
     inline void AttrName(TypeName object, AttrType value) { \
 		if (!object) { return; } /* Don't write on nil objects */ \
@@ -219,18 +240,17 @@ namespace ot {
         } \
         else { \
             attrMap.emplace(object.get(), std::move(value)); \
+			/* Add remover to delete attributes on object descruction */ \
+			object.get()->removers.emplace_back([&](ot::Type* object){ \
+				attrMap.erase(object); \
+			}); \
         } \
-    } \
-	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
-	} 
+    } 
 
 #define ATTRN(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
-    inline std::map<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
-        static std::map<ot::Type*, ot::vector<AttrType>> attrMap; \
+    inline std::unordered_map<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
+        static std::unordered_map<ot::Type*, ot::vector<AttrType>> attrMap; \
         return attrMap; \
     } \
 	/* Read complete list */ \
@@ -250,7 +270,11 @@ namespace ot {
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
         if (it == attrMap.cend()) { \
-           it = attrMap.emplace(object.get(), ot::vector<AttrType>()).first; \
+			it = attrMap.emplace(object.get(), ot::vector<AttrType>()).first; \
+			/* Add remover to delete attributes on object descruction */ \
+			object.get()->removers.emplace_back([&](ot::Type* object){ \
+				attrMap.erase(object); \
+			}); \
         } \
 		it->second.emplace_back(std::move(value)); \
     } \

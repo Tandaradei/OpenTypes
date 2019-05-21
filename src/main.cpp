@@ -23,7 +23,7 @@ int main() {
 	printTags(hans_ref); // Read filled list of attributes using reference
 	hans(tag, std::string("Quality Assurance")); // Update a value of attribute list using helper function
 	printTags(hans); // Read filled list of attributes 
-	hans -= REMOVE_VALUE(tags, Person, std::string, std::string("Software Architect")); // Remove first "Software Architect" from tags of hans
+	hans -= REMOVE_VALUE(tags, Person, std::string, "Software Architect"); // Remove first "Software Architect" from tags of hans
 	printTags(hans); // Read filled list of attributes 
 	std::cout << "get undefined skill name from skills of hans: " << hans[skills][4][name] << std::endl; // Try to read undefined item of attribute list
 	std::cout << "first skill of " << hans[name] << ": " << hans_ref[skill][name] << std::endl; // Read attribute of item in attribute list using reference and helper function
