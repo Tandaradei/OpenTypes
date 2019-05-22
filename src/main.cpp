@@ -26,10 +26,31 @@ int main() {
 	hans -= REMOVE_VALUE(tags, Person, std::string, "Software Architect"); // Remove first "Software Architect" from tags of hans
 	printTags(hans); // Read filled list of attributes 
 	std::cout << "get undefined skill name from skills of hans: " << hans[skills][4][name] << std::endl; // Try to read undefined item of attribute list
-	std::cout << "first skill of " << hans[name] << ": " << hans_ref[skill][name] << std::endl; // Read attribute of item in attribute list using reference and helper function
-	hans -= name; // Remove attribute value
-    //hans[skills] -= skill1;
+	//hans -= name; // Remove attribute value
 	std::cout << "name of hans: " << hans[name] << std::endl; // Read removed attribute
+
+	Car audi(model, std::string("Audi"));
+	Car bmw(model, std::string("BMW"));
+	std::cout << "Car models of hans: " << std::endl;
+	for (auto car : hans[cars]) {
+		std::cout << "* " << car[model] << std::endl;
+	}
+	std::cout << "Owner name of audi: " << audi[owner][name] << std::endl;
+	std::cout << "Owner name of bmw: " << bmw[owner][name] << std::endl;
+	hans(cars, audi);
+	std::cout << "Car models of hans: " << std::endl;
+	for (auto car : hans[cars]) {
+		std::cout << "* " << car[model] << std::endl;
+	}
+	std::cout << "Owner name of audi: " << audi[owner][name] << std::endl;
+	std::cout << "Owner name of bmw: " << bmw[owner][name] << std::endl;
+	bmw(owner, hans);
+	std::cout << "Car models of hans: " << std::endl;
+	for (auto car : hans[cars]) {
+		std::cout << "* " << car[model] << std::endl;
+	}
+	std::cout << "Owner name of audi: " << audi[owner][name] << std::endl;
+	std::cout << "Owner name of bmw: " << bmw[owner][name] << std::endl;
 
 	return 0;
 }
