@@ -17,4 +17,18 @@ void printTags(Person p) {
 	}
 }
 
+void printFriends(Person p) {
+	std::cout << "friends of " << p[name] << ": " << std::endl;
+	for (auto friend_ : p[friends]) {
+		std::cout << friend_[name] << std::endl;
+	}
+}
+
+void printCars(Person p) {
+	std::cout << "cars of " << p[name] << ": " << std::endl;
+	for (auto car : p[cars]) {
+		std::cout << car[model] << "(" << car[engine][name] << ")" << std::endl;
+	}
+}
+
 #endif // HELPER_HPP

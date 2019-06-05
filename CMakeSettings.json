@@ -1,0 +1,63 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-D OUTPUT_NAME=\"msvc_x64_x64\"",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "variables": []
+    },
+    {
+      "name": "x64-Clang-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-D OUTPUT_NAME=\"clang_cl_64\"",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "clang_cl_x64" ],
+      "variables": []
+    },
+    {
+      "addressSanitizerEnabled": true,
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "buildCommandArgs": "",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "cmakeCommandArgs": "-D OUTPUT_NAME=\"linux_clang_64\"",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "configurationType": "Debug",
+      "ctestCommandArgs": "",
+      "generator": "Unix Makefiles",
+      "inheritEnvironments": [ "linux_clang_x64" ],
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "intelliSenseMode": "windows-clang-x64",
+      "name": "WSL-Clang-Debug",
+      "remoteCopySources": true,
+      "variables": [],
+      "wslPath": "${defaultWSLPath}"
+    },
+    {
+      "name": "WSL-Debug",
+      "generator": "Unix Makefiles",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-D OUTPUT_NAME=\"linux_64\"",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "variables": [],
+      "addressSanitizerEnabled": true,
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ]
+}

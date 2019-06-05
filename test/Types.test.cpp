@@ -32,13 +32,6 @@ SCENARIO("type and object creation", "[type, object]") {
                 REQUIRE(p);
             }
         }
-		WHEN("a type object is created with constructor") {
-			Person p(true);
-			THEN("is p not nil") {
-				REQUIRE(p != ot::nil);
-				REQUIRE(p);
-			}
-		}
         WHEN("a type object and a nil type variable are created") {
             Person p1 = ot::empty();
             Person p2 = ot::nil;

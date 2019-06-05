@@ -37,3 +37,4 @@ build/*
 
 CMakeLists.txt.user
 /.vs
+/out/build
