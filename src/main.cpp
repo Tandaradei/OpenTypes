@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "src/Types/Person.extended.hpp"
+#include "src/Types/List.hpp"
 
 #include "Helper.hpp"
 #include "Helper2.hpp"
@@ -59,6 +60,11 @@ int main() {
 	printFriends(hans);
 	printFriends(peter);
 	printFriends(jens);
+
+#if TEMPLATE_TYPES_ENABLED
+	List<int> list;
+	list(size, 5);
+#endif
 
 	return 0;
 }

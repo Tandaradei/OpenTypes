@@ -10,7 +10,13 @@
       "cmakeCommandArgs": "-D OUTPUT_NAME=\"msvc_x64_x64\"",
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
-      "variables": []
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "name": "x64-Clang-Debug",
@@ -22,7 +28,13 @@
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "clang_cl_x64" ],
-      "variables": []
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-m64 -fdiagnostics-absolute-paths  /DWIN32 /D_WINDOWS /W3 /GR /EHsc",
+          "type": "STRING"
+        }
+      ]
     },
     {
       "addressSanitizerEnabled": true,
