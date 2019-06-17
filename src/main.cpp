@@ -62,8 +62,16 @@ int main() {
 	printFriends(jens);
 
 #if TEMPLATE_TYPES_ENABLED
-	List<int> list;
-	list(size, 5);
+	List<int> list = ot::empty();
+	list(head, 3)(tail, List<int>(head, 2));
+
+	printList(list);
+
+	Pair<std::string, int> person = ot::empty();
+	person(key, std::string("Hans"));
+	person(value, 5);
+	printf("%s", person[key<std::string, int>].c_str());
+	printf(" %d\n", person[value<std::string, int>]);
 #endif
 
 	return 0;
