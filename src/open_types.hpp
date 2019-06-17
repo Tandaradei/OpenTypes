@@ -181,9 +181,12 @@ namespace ot {
 				it->second.insert(begin(it->second) + i, std::move(value)); \
 			} \
 			else { \
-				AttrName(object, value); \
+				AttrName(object, value); /* Add item at end */ \
 			} \
         } \
+		else { \
+			AttrName(object, value);  /* Create list and add item at end */ \
+		} \
     } \
 	/* Remove */ \
 	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
