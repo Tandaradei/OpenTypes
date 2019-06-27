@@ -124,5 +124,65 @@ SCENARIO("attributes", "[attribute]") {
 			REQUIRE((p_obj[tags][0] == "Easy" && p_obj[tags][5] == std::string()));
 			REQUIRE((p_var[tags][0] == "Easy" && p_var[tags][5] == std::string()));
 		}
+        GIVEN("the list 'tags' with 5 elements") {
+            p_var(tags, std::string("Zero"))
+                 (tags, std::string("One"))
+                 (tags, std::string("Two"))
+                 (tags, std::string("Three"))
+                 (tags, std::string("Four"));
+            THEN("adding an element 'Five' at position 5") {
+                p_obj(tags, 5, std::string("Five"));
+                THEN("reading it's size should return 6") {
+                    REQUIRE(p_obj[tags].size() == 6);
+                    REQUIRE(p_var[tags].size() == 6);
+                }
+                THEN("reading the element at position 5 should return 'Five'") {
+                    REQUIRE(p_obj[tags][5] == "Five");
+                    REQUIRE(p_obj[tags][5] == "Five");
+                }
+            }
+            THEN("adding an element 'Six' at position 6") {
+                p_obj(tags, 6, std::string("Six"));
+                THEN("reading it's size should return 6") {
+                    REQUIRE(p_obj[tags].size() == 6);
+                    REQUIRE(p_var[tags].size() == 6);
+                }
+                THEN("reading the element at position 5 should return 'Six'") {
+                    REQUIRE(p_obj[tags][5] == "Six");
+                    REQUIRE(p_obj[tags][5] == "Six");
+                }
+                THEN("reading the element at position 6 should return empty string") {
+                    REQUIRE(p_obj[tags][6] == "");
+                    REQUIRE(p_obj[tags][6] == "");
+                }
+            }
+            THEN("adding an element 'Inserted' at position 3") {
+                p_obj(tags, 3, std::string("Inserted"));
+                THEN("reading it's size should return 6") {
+                    REQUIRE(p_obj[tags].size() == 6);
+                }
+                THEN("reading the element at position 3 should return 'Inserted'") {
+                    REQUIRE(p_obj[tags][3] == "Inserted");
+                }
+                THEN("reading the element at position 5 should return 'Four'") {
+                    REQUIRE(p_obj[tags][5] == "Four");
+                }
+                THEN("reading the element at position 6 should return empty string") {
+                    REQUIRE(p_obj[tags][6] == "");
+                }
+            }
+            THEN("adding an element 'Inserted' at position -1") {
+                p_obj(tags, -1, std::string("Inserted"));
+                THEN("reading it's size should return 6") {
+                    REQUIRE(p_obj[tags].size() == 6);
+                }
+                THEN("reading the element at position 5 should return 'Inserted'") {
+                    REQUIRE(p_obj[tags][5] == "Inserted");
+                }
+                THEN("reading the element at position -1 should return empty string") {
+                    REQUIRE(p_obj[tags][-1] == "");
+                }
+            }
+        }
 	}
 }

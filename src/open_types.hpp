@@ -9,32 +9,25 @@
 #include <vector>
 
 namespace ot {
-	/**
-	Dummy class to differentiate between function declarations
-	*/
+    /// Dummy class to differentiate between function declarations
 	struct AttributeDeleter {
+        bool deleteRelation = true;
 	};
 
-	/**
-	Base type for all custom types
-	*/
+    /// Base type for all custom types
     struct Type {
 		std::vector<std::function<void(Type*)>> removers;
-		/*~Type() {
+        ~Type() {
 			for (auto remover : removers) {
-				remover(this);
+                remover(this);
 			}
-		}*/
+        }
     };
 
-	/**
-	Reference to nullptr
-	*/
+    /// Reference to nullptr
 	static const std::shared_ptr<Type> nil = nullptr;
 
-	/**
-	Returns a reference to a new created object
-	*/
+    /// Returns a reference to a new created object
     inline std::shared_ptr<Type> empty() {
 		return std::make_shared<Type>();
 	}
@@ -65,7 +58,7 @@ namespace ot {
     struct TypeName : public std::shared_ptr<ot::Type> { \
         TypeName() : std::shared_ptr<ot::Type>() {} \
         TypeName(const std::shared_ptr<ot::Type>& other) : std::shared_ptr<ot::Type>(other){} \
-		/* Write attribute  on construction */ \
+        /* Write attribute on construction */ \
         template <typename AttrType> \
         TypeName(void (*write)(TypeName, AttrType), AttrType value) \
         : std::shared_ptr<ot::Type>(std::make_shared<ot::Type>()) { \
@@ -215,8 +208,6 @@ namespace ot {
 	} 
 
 // *** Templated Types and Attributes ***
-#define TEMPLATE_TYPES_ENABLED 1
-#if TEMPLATE_TYPES_ENABLED
 
 #define COMMA ,
 
@@ -266,8 +257,7 @@ namespace ot {
 	inline void AttrName(TypeNameBase<TemplateArgsNames> object, ot::AttributeDeleter) { \
 		auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
         attrMap.erase(object.get()); \
-	} 
-#endif
+    }
 
 // *** Relations ***
 
@@ -294,25 +284,33 @@ namespace ot {
         auto& attrMap = TypeName ##_ ##AttrName(); \
         auto it = attrMap.find(object.get()); \
         if (it != attrMap.cend()) { \
-			AttrNameOther(it->second, ot::AttributeDeleter {}); \
+            AttrNameOther(it->second, ot::AttributeDeleter {}); \
             it->second = other; \
         } \
         else { \
             attrMap.emplace(object.get(), other); \
 			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type * object_ptr) { auto& attrMap = TypeName ##_ ##AttrName(); attrMap.erase(object_ptr); }); \
+            object.get()->removers.emplace_back([](ot::Type * object_ptr) { \
+                auto& attrMap = TypeName ##_ ##AttrName(); \
+                auto it = attrMap.find(object_ptr); \
+                if(it != attrMap.cend()) { \
+                    attrMap.erase(object_ptr); \
+                    AttrNameOther(it->second, ot::AttributeDeleter { false }); \
+                } \
+            }); \
         } \
 		if(AttrNameOther(other) != object) { \
 			AttrNameOther(other, object); \
 		} \
     } \
 	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
+    inline void AttrName(TypeName object, ot::AttributeDeleter deleter) { \
+        if(!object) { return; } \
 		auto& attrMap = TypeName ##_ ##AttrName(); \
 		auto other = AttrName(object); \
 		attrMap.erase(object.get()); \
-		if(other != ot::nil) { \
-			AttrNameOther(other, ot::AttributeDeleter {}); \
+        if(deleter.deleteRelation && other != ot::nil) { \
+            AttrNameOther(other, ot::AttributeDeleter { false }); \
 		} \
 	} 
 
@@ -358,7 +356,7 @@ namespace ot {
         auto it = attrMap.find(object.get()); \
         if (it != attrMap.cend()) { \
 			if(it->second.size() > i) { \
-				it->second.insert(begin(it->second) + i, other); \
+                it->second.insert(begin(it->second) + static_cast<long>(i), other); \
 			} \
 			else { \
 				AttrName(object, other); \
@@ -590,15 +588,15 @@ namespace ot {
 // *** Helpers ***
 
 #define REMOVE_VALUE(AttrName, TypeName, AttrType, Value) \
-	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ value == Value, false }; } }
+    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t) { return std::pair<bool, bool>{ value == Value, false }; } }
 
 #define REMOVE_VALUE_ALL(AttrName, TypeName, AttrType, Value) \
-	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ value == Value, true }; } }
+    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t) { return std::pair<bool, bool>{ value == Value, true }; } }
 
 #define REMOVE_ALL(AttrName, TypeName, AttrType) \
-	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ true, true }; } }
+    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType, size_t) { return std::pair<bool, bool>{ true, true }; } }
 
 #define REMOVE_INDEX(AttrName, TypeName, AttrType, Index) \
-	ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t index) { return std::pair<bool, bool>{ index == Index, false }; } }
+    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType, size_t index) { return std::pair<bool, bool>{ index == Index, false }; } }
 
 #endif // OPEN_TYPES_HPP
