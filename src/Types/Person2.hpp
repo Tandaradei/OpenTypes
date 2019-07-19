@@ -4,11 +4,11 @@
 #include "src/open_types2.hpp"
 
 enum class Grade {
-	A,
-	B,
-	C,
+    A,
+    B,
+    C,
 	D,
-	F
+    F = 5
 };
 
 OT_TYPE(Person)

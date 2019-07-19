@@ -7,8 +7,7 @@
 #include <functional>
 
 namespace ot {
-	static const bool IS_DEBUG = false;
-
+    static const bool SHOULD_PRINT_DEBUG = false;
 	/// Dummy class to differentiate between function declarations
 	struct DeleteDefault {
 	};
@@ -74,18 +73,24 @@ namespace ot {
 		}
 
 		Reference(T* ptr) 
-			: myPtr(ptr) {
-			PtrManager::getInstance().inc(myPtr);
+            : myPtr(ptr) {
+            if(myPtr) {
+                PtrManager::getInstance().inc(myPtr);
+            }
 		}
 		~Reference() {
-			PtrManager::getInstance().dec(myPtr);
+            if (myPtr) {
+                PtrManager::getInstance().dec(myPtr);
+            }
 		}
 		Reference(const Reference& other) {
 			if (myPtr) {
 				PtrManager::getInstance().dec(myPtr);
 			}
 			myPtr = other.get();
-			PtrManager::getInstance().inc(myPtr);
+            if (myPtr) {
+                PtrManager::getInstance().inc(myPtr);
+            }
 		}
 
 		Reference& operator=(const Reference& other) {
@@ -93,7 +98,9 @@ namespace ot {
 				PtrManager::getInstance().dec(myPtr);
 			}
 			myPtr = other.get();
-			PtrManager::getInstance().inc(myPtr);
+            if (myPtr) {
+                PtrManager::getInstance().inc(myPtr);
+            }
 			return *this;
 		}
 
@@ -321,7 +328,7 @@ namespace ot {
 #define OT_TYPE(TypeName) \
 	namespace ot_types { \
 		struct TypeName : public ot::Type { \
-			~TypeName(){ if(ot::IS_DEBUG) printf("DEBUG: Destructor of ot_types::%s called\n", #TypeName);} \
+            ~TypeName(){ if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Destructor of ot_types::%s called\n", #TypeName);} \
 			/* Read attribute value */ \
 			template <typename AttrType> \
 			AttrType operator[](AttrType (*read)(TypeName*)) { \
@@ -356,12 +363,12 @@ namespace ot {
 		}; \
 	} \
 	struct TypeName : public ot::Reference<ot_types::TypeName> { \
-		static TypeName create() { return ot::Reference<ot_types::TypeName>::create(); } \
-		static TypeName nil() { return ot::Reference<ot_types::TypeName>(nullptr); } \
+        static TypeName create() { return ot::Reference<ot_types::TypeName>::create(); } \
+        static TypeName nil() { return ot::Reference<ot_types::TypeName>(nullptr); } \
 		TypeName() : ot::Reference<ot_types::TypeName>() {} \
 		TypeName(ot_types::TypeName* other) : ot::Reference<ot_types::TypeName>(other){} \
 		TypeName(const ot::Reference<ot_types::TypeName>& other) : ot::Reference<ot_types::TypeName>(other){} \
-		~TypeName(){ if(ot::IS_DEBUG) printf("DEBUG: Destructor of %s called\n", #TypeName);} \
+        ~TypeName(){ if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Destructor of %s called\n", #TypeName);} \
 		/* Write attribute on construction */ \
 		template <typename AttrType> \
 		TypeName(void (*write)(TypeName&, AttrType), AttrType value) \
@@ -433,9 +440,9 @@ namespace ot {
 			attrMap.emplace(ptr, std::move(value)); \
 			/* Add remover to delete attributes on object descruction */ \
 			ptr->removers.emplace_back([](ot::Type* ptr) { \
-				if(ot::IS_DEBUG) printf("DEBUG: Remover for %s::%s called\n", #TypeName, #AttrName); \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Remover for %s::%s called\n", #TypeName, #AttrName); \
 				auto& attrMap = TypeName ##_ ##AttrName(); \
-				attrMap.erase((ot_types::TypeName*)ptr); \
+                attrMap.erase(static_cast<ot_types::TypeName*>(ptr)); \
 			}); \
 		} \
     } \
@@ -480,7 +487,7 @@ namespace ot {
 			it = attrMap.emplace(ptr, ot::vector<AttrType>()).first; \
 			/* Add remover to delete attributes on object descruction */ \
 			ptr->removers.emplace_back([](ot::Type* ptr){ \
-				if(ot::IS_DEBUG) printf("DEBUG: List-Remover for %s::%s called\n", #TypeName, #AttrName); \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: List-Remover for %s::%s called\n", #TypeName, #AttrName); \
 				auto& attrMap = TypeName ##_ ##AttrName(); \
                 attrMap.erase(static_cast<ot_types::TypeName*>(ptr)); \
 			}); \
@@ -497,7 +504,7 @@ namespace ot {
         auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
 			if(it->second.size() > i) { \
-				it->second.insert(begin(it->second) + i, std::move(value)); \
+                it->second.insert(begin(it->second) + static_cast<long>(i), std::move(value)); \
 			} \
 			else { \
 				AttrName(ptr, value); /* Add item at end */ \
@@ -542,7 +549,7 @@ namespace ot {
         if (it != attrMap.cend()) { \
 			auto& values = it->second; \
 			if (values.size() > deleter.index) { \
-				values.erase(begin(values) + deleter.index); \
+                values.erase(begin(values) + static_cast<long>(deleter.index)); \
 			} \
 		} \
 	} \
@@ -671,9 +678,9 @@ namespace ot {
             attrMap.emplace(ptr, std::move(value)); \
 			/* Add remover to delete attributes on object descruction */ \
 			ptr->removers.emplace_back([](ot::Type* ptr){ \
-				if(ot::IS_DEBUG) printf("DEBUG: Remover for %s<%s>::%s called\n", #TypeNameBase, #TemplateArgsNames, #AttrName); \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Remover for %s<%s>::%s called\n", #TypeNameBase, #TemplateArgsNames, #AttrName); \
 				auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
-				attrMap.erase((ot_types::TypeNameBase<TemplateArgsNames>*)ptr); \
+                attrMap.erase(static_cast<ot_types::TypeNameBase<TemplateArgsNames>*>(ptr)); \
 			}); \
         } \
     } \
@@ -725,9 +732,9 @@ namespace ot {
 			it = attrMap.emplace(ptr, ot::vector<AttrType>()).first; \
 			/* Add remover to delete attributes on object descruction */ \
 			ptr->removers.emplace_back([](ot::Type* ptr){ \
-				if(ot::IS_DEBUG) printf("DEBUG: List-Remover for %s<%s>::%s called\n", #TypeNameBase, #TemplateArgsNames, #AttrName); \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: List-Remover for %s<%s>::%s called\n", #TypeNameBase, #TemplateArgsNames, #AttrName); \
 				auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
-				attrMap.erase((ot_types::TypeNameBase<TemplateArgsNames>*)ptr); \
+                attrMap.erase(static_cast<ot_types::TypeNameBase<TemplateArgsNames>*>(ptr)); \
 			}); \
 		} \
 		it->second.emplace_back(std::move(value)); \
@@ -807,7 +814,7 @@ namespace ot {
 #define OT_REL11_READ(AttrName, TypeName, TypeNameOther, ListName) \
 	inline TypeNameOther AttrName(ot_types::TypeName* ptr) { \
 		auto& set = ListName(); \
-		return (ot_types::TypeNameOther*)set.other(ptr); \
+        return static_cast<ot_types::TypeNameOther*>(set.other(ptr)); \
 	} \
 	inline TypeNameOther AttrName(const TypeName& object) { \
 		return AttrName(object.get()); \
@@ -816,7 +823,7 @@ namespace ot {
 #define OT_REL11_WRITE(AttrName, TypeName, TypeNameOther, ListName) \
 	inline void AttrName(ot_types::TypeName* ptr, ot_types::TypeNameOther* value) { \
 		auto& set = ListName(); \
-		set.set((ot::Type*)ptr, (ot::Type*)value); \
+        set.set(static_cast<ot::Type*>(ptr), static_cast<ot::Type*>(value)); \
 	} \
 	inline void AttrName(TypeName& object, TypeNameOther value) { \
 		AttrName(object.get(), value.get()); \
@@ -873,7 +880,7 @@ namespace ot {
 	} \
 	inline TypeName1 AttrName2(ot_types::TypeName2* ptr) { \
 		auto& list = ListName(); \
-		return (ot_types::TypeName1*)list.otherSingle(ptr); \
+        return static_cast<ot_types::TypeName1*>(list.otherSingle(ptr)); \
 	} \
 	inline TypeName1 AttrName2(const TypeName2& object) { \
 		return AttrName2(object.get()); \

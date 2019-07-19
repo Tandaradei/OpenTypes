@@ -26,7 +26,7 @@ int main() {
 			else {
 				std::cout << ", ";
 			}
-			std::cout << (int)grade;
+            std::cout << static_cast<char>(static_cast<int>(grade) + static_cast<int>('A'));
 		}
 		std::cout << std::endl;
 	};
