@@ -12,7 +12,7 @@ target_include_directories(Catch INTERFACE external/catch.hpp)
 
 add_executable(${PROJECT_NAME}_${OUTPUT_NAME}
     src/main.cpp
-    src/open_types.hpp
+    src/open_types2.hpp
     src/Types/Car.hpp
     src/Types/Skill.hpp
     src/Types/Person.hpp

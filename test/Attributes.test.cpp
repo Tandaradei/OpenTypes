@@ -4,8 +4,8 @@
 
 SCENARIO("attributes", "[attribute]") {
 	GIVEN("a nil variable and an object of type 'Person'") {
-		Person p_var;
-		Person p_obj = ot::empty();
+		Person p_var = Person::nil();
+		Person p_obj = Person::create();
 		WHEN("attribute 'name' was not set") {
 			THEN("reading 'name' should return empty string") {
 				REQUIRE(p_var[name] == std::string());
@@ -34,7 +34,7 @@ SCENARIO("attributes", "[attribute]") {
 		}
 	}
 	GIVEN("an object of type 'Person' and a variable referencing it") {
-		Person p_obj = ot::empty();
+		Person p_obj = Person::create();
 		Person p_var = p_obj;
 		WHEN("attribute 'name' was set on object") {
 			p_obj(name, std::string("Peter"));
@@ -82,7 +82,7 @@ SCENARIO("attributes", "[attribute]") {
 		}
 	}
 	GIVEN("an object of type 'Person' with list-attribute 'tags' and a variable referencing the object") {
-		Person p_obj = ot::empty();
+		Person p_obj = Person::create();
 		Person p_var = p_obj;
 		THEN("reading the size of empty list 'tags' should return 0") {
 			REQUIRE(p_obj[tags].size() == 0);
