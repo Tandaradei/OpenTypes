@@ -164,10 +164,6 @@ namespace ot {
 	struct LinkedAttributesSet {
 		std::vector<LinkedAttributes<A, B>> links;
 
-		bool contains(Type* t) {
-			return find(t).second != ContainsResult::None;
-		}
-
 		Type* other(Type* t) {
 			if (!t) { return nullptr; }
 			for (auto& link : links) {
@@ -230,10 +226,6 @@ namespace ot {
 	template <typename A, typename B>
 	struct LinkedAttributesListSet {
 		std::vector<LinkedAttributes<A, B>> links;
-
-		bool contains(Type* t) {
-			return find(t).second != ContainsResult::None;
-		}
 
 		Type* otherSingle(Type* t) {
 			if (!t) { return nullptr; }
@@ -337,15 +329,15 @@ namespace ot {
 			} \
 			/* Write attribute / Add value to attribute list */ \
 			template <typename AttrType> \
-			TypeName* operator()(void (*write)(TypeName*, AttrType), AttrType value) { \
+            TypeName& operator()(void (*write)(TypeName*, AttrType), AttrType value) { \
 				write(this, value); \
-				return this; \
+                return *this; \
 			} \
 			/* Write value to position in attribute list */ \
 			template <typename AttrType> \
-			TypeName operator()(void (*writeAt)(TypeName*, size_t, AttrType), size_t i, AttrType value) { \
+            TypeName& operator()(void (*writeAt)(TypeName*, size_t, AttrType), size_t i, AttrType value) { \
 				writeAt(this, i, value); \
-				return this; \
+                return *this; \
 			} \
 			/* Remove attribute value / entire list */ \
 			void operator-=(void (*remove)(TypeName*, ot::DeleteDefault)) { \

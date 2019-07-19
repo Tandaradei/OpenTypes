@@ -3,7 +3,7 @@
 
 #include <type_traits>
 #include <functional>
-#include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <memory>
 #include <vector>
@@ -94,8 +94,8 @@ namespace ot {
 
 #define ATTR1(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
-    inline std::unordered_map<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, AttrType> attrMap; \
+    inline std::unordered_set<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, AttrType> attrMap; \
         return attrMap; \
     } \
 	/* Read */ \
@@ -134,8 +134,8 @@ namespace ot {
 
 #define ATTRN(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
-    inline std::unordered_map<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, ot::vector<AttrType>> attrMap; \
+    inline std::unordered_set<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, ot::vector<AttrType>> attrMap; \
         return attrMap; \
     } \
 	/* Read complete list */ \
@@ -218,8 +218,8 @@ namespace ot {
 #define TEMPLATE_ATTR1(AttrName, TypeNameBase, TemplateArgsNames, AttrType, TemplateArgs) \
 	/* Attribute map */ \
 	template <TemplateArgs> \
-    inline std::unordered_map<ot::Type*, AttrType>& TypeNameBase ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, AttrType> attrMap; \
+    inline std::unordered_set<ot::Type*, AttrType>& TypeNameBase ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, AttrType> attrMap; \
         return attrMap; \
     } \
 	/* Read */ \
@@ -263,8 +263,8 @@ namespace ot {
 
 #define ATTR11Link(AttrName, TypeName, TypeNameOther, AttrNameOther) \
 	/* Attribute map */ \
-	inline std::unordered_map<ot::Type*, TypeNameOther>& TypeName ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, TypeNameOther> attrMap; \
+    inline std::unordered_set<ot::Type*, TypeNameOther>& TypeName ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, TypeNameOther> attrMap; \
         return attrMap; \
 	} \
 	/* Read */ \
@@ -316,8 +316,8 @@ namespace ot {
 
 #define ATTRN1Link(AttrName, TypeName, TypeNameOther, AttrNameOther) \
 	/* Attribute map */ \
-	inline std::unordered_map<ot::Type*, ot::vector<TypeNameOther>>& TypeName ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, ot::vector<TypeNameOther>> attrMap; \
+    inline std::unordered_set<ot::Type*, ot::vector<TypeNameOther>>& TypeName ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, ot::vector<TypeNameOther>> attrMap; \
         return attrMap; \
 	} \
 	/* Read */ \
@@ -399,8 +399,8 @@ namespace ot {
 
 #define ATTR1NLink(AttrName, TypeName, TypeNameOther, AttrNameOther) \
 	/* Attribute map */ \
-	inline std::unordered_map<ot::Type*, TypeNameOther>& TypeName ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, TypeNameOther> attrMap; \
+    inline std::unordered_set<ot::Type*, TypeNameOther>& TypeName ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, TypeNameOther> attrMap; \
         return attrMap; \
 	} \
 	/* Read */ \
@@ -450,8 +450,8 @@ namespace ot {
 
 #define ATTRNNLink(AttrName, TypeName, TypeNameOther, AttrNameOther) \
 	/* Attribute map */ \
-	inline std::unordered_map<ot::Type*, ot::vector<TypeNameOther>>& TypeName ##_ ##AttrName() { \
-        static std::unordered_map<ot::Type*, ot::vector<TypeNameOther>> attrMap; \
+    inline std::unordered_set<ot::Type*, ot::vector<TypeNameOther>>& TypeName ##_ ##AttrName() { \
+        static std::unordered_set<ot::Type*, ot::vector<TypeNameOther>> attrMap; \
         return attrMap; \
 	} \
 	/* Read */ \

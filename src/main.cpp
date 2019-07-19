@@ -50,58 +50,6 @@ int main() {
 	std::cout << "first car of Hans: " << hans[cars][0][name] << std::endl;
 	std::cout << "second car of Hans: " << hans[cars][1][name] << std::endl;
 	std::cout << "owner of BMW: " << name(owner(myCar)) << std::endl;
-	/*
-	printSkills(hans); // Read empty list of attributes
-	hans(skills, Skill(name, std::string("Java"))(value, 0.1f)); // Add new value to attribute list
-	hans_ref(skills, Skill(name, std::string("C++"))(value, 0.35f)); // Add new value to attribute list
-	printSkills(hans_ref); // Read filled list of attributes using reference
-	hans(tags, std::string("Software Engineer"))(tags, std::string("Software Architect")); // Add two values to attribute list
-	printTags(hans_ref); // Read filled list of attributes using reference
-	hans(tag, std::string("Quality Assurance")); // Update a value of attribute list using helper function
-	printTags(hans); // Read filled list of attributes 
-	hans -= REMOVE_VALUE(tags, Person, std::string, "Software Architect"); // Remove first "Software Architect" from tags of hans
-	printTags(hans); // Read filled list of attributes 
-	std::cout << "get undefined skill name from skills of hans: " << hans[skills][4][name] << std::endl; // Try to read undefined item of attribute list
-	//hans -= name; // Remove attribute value
-	std::cout << "name of hans: " << hans[name] << std::endl; // Read removed attribute
-
-	{
-		Car audi = ot::empty();
-		Engine v6(car, audi);
-		//v6(name, std::string("V6 Biturbo"));
-	}
-	*/
-	/*
-	Car bmw(model, std::string("BMW"));
-	Engine v8(name, std::string("V8"));
-	bmw(engine, v8);
-	std::cout << "Car models of hans: " << std::endl;
-	for (auto car : hans[cars]) {
-		std::cout << "* " << car[model] << std::endl;
-	}
-	std::cout << "Owner name of audi: " << audi[owner][name] << std::endl;
-	std::cout << "Owner name of bmw: " << bmw[owner][name] << std::endl;
-	hans(cars, audi);
-	printCars(hans);
-	std::cout << "Owner name of audi: " << audi[owner][name] << std::endl;
-	std::cout << "Owner name of bmw: " << bmw[owner][name] << std::endl;
-	bmw(owner, hans);
-	printCars(hans);
-	std::cout << "Owner name of audi: " << audi[owner][name] << std::endl;
-	std::cout << "Owner name of bmw: " << bmw[owner][name] << std::endl;
-
-	std::cout << v6[name] << " is build into " << v6[car][model] << std::endl;
-
-	Person peter(name, std::string("Peter"));
-	Person jens(name, std::string("Jens"));
-
-	hans(friends, peter);
-	hans(friends, jens);
-
-	printFriends(hans);
-	printFriends(peter);
-	printFriends(jens);
-	*/
     List<int> list = List<int>(head, 3)(tail, List<int>(head, 2)(tail, List<int>(head, 8)));
     list[head<int>];
     head(list);
