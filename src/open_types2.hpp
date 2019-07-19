@@ -153,9 +153,9 @@ namespace ot {
 		A* a;
 		B* b;
 		ContainsResult contains(Type* t) {
-			if		((A*)t == a)	return ContainsResult::First;
-			else if ((B*)t == b)	return ContainsResult::Second;
-			else					return ContainsResult::None;
+            if		(static_cast<A*>(t) == a)	return ContainsResult::First;
+            else if (static_cast<B*>(t) == b)	return ContainsResult::Second;
+            else                                return ContainsResult::None;
 		}
 	};
 
@@ -186,14 +186,14 @@ namespace ot {
 				ContainsResult result = link.contains(t);
 				if (result != ContainsResult::None) {
 					if (result == ContainsResult::First) {
-						link.b = (B*)n;
+                        link.b = static_cast<B*>(n);
 						n->removers.emplace_back([&](Type* ptr) {
 							remove(ptr);
 						});
 						return;
 					}
 					else if (result == ContainsResult::Second) {
-						link.a = (A*)n;
+                        link.a = static_cast<A*>(n);
 						n->removers.emplace_back([&](Type* ptr) {
 							remove(ptr);
 						});
@@ -201,7 +201,7 @@ namespace ot {
 					}
 				}
 			}
-			links.push_back(LinkedAttributes<A, B>{ (A*)t, (B*)n });
+            links.push_back(LinkedAttributes<A, B>{ static_cast<A*>(t), static_cast<B*>(n) });
 			t->removers.emplace_back([&](Type* ptr) {
 				remove(ptr);
 			});
@@ -260,7 +260,7 @@ namespace ot {
 				ContainsResult result = link.contains(value);
 				if (result != ContainsResult::None) {
 					if (result == ContainsResult::Second) {
-						link.a = (A*)key;
+                        link.a = static_cast<A*>(key);
 						value->removers.emplace_back([&](Type* ptr) {
 							remove(ptr);
 							});
@@ -269,7 +269,7 @@ namespace ot {
 				}
 			}
 			// Add new entry
-			links.push_back(LinkedAttributes<A, B>{ (A*)key, (B*)value });
+            links.push_back(LinkedAttributes<A, B>{ static_cast<A*>(key), static_cast<B*>(value) });
 			key->removers.emplace_back([&](Type* ptr) {
 				remove(ptr);
 				});
@@ -284,7 +284,7 @@ namespace ot {
 				ContainsResult result = link.contains(value);
 				if (result != ContainsResult::None) {
 					if (result == ContainsResult::Second) {
-						link.a = (A*)key;
+                        link.a = static_cast<A*>(key);
 						value->removers.emplace_back([&](Type* ptr) {
 							remove(ptr);
 						});
@@ -293,7 +293,7 @@ namespace ot {
 				}
 			}
 			// Add new entry
-			links.push_back(LinkedAttributes<A, B>{ (A*)key, (B*)value });
+            links.push_back(LinkedAttributes<A, B>{ static_cast<A*>(key), static_cast<B*>(value) });
 			key->removers.emplace_back([&](Type* ptr) {
 				remove(ptr);
 				});
@@ -482,7 +482,7 @@ namespace ot {
 			ptr->removers.emplace_back([](ot::Type* ptr){ \
 				if(ot::IS_DEBUG) printf("DEBUG: List-Remover for %s::%s called\n", #TypeName, #AttrName); \
 				auto& attrMap = TypeName ##_ ##AttrName(); \
-				attrMap.erase((ot_types::TypeName*)ptr); \
+                attrMap.erase(static_cast<ot_types::TypeName*>(ptr)); \
 			}); \
 		} \
 		it->second.emplace_back(std::move(value)); \

@@ -6,7 +6,7 @@
 #include "src/Types/Person2.hpp"
 
 //#include "Helper.hpp"
-//#include "Helper2.hpp"
+#include "Helper2.hpp"
 
 int main() {
 	Person hans = Person::create(); // Create Person object
@@ -54,7 +54,7 @@ int main() {
     list[head<int>];
     head(list);
 
-	//printList(list);
+    printList(list);
 	Pair<std::string, int> person = Pair<std::string, int>::create();
 	person(key, std::string("Hans"));
 	person(value, 5);
