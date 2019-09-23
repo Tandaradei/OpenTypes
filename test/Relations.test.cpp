@@ -60,7 +60,7 @@ SCENARIO("relations between types", "[type, relation]") {
             THEN("car of engine_obj1 should be equal to car_obj") {
                 REQUIRE((engine_obj1[car] == car_obj));
             }
-            THEN("car of engine_obj1 should be nil") {
+            THEN("car of engine_obj2 should be nil") {
                 REQUIRE((engine_obj2[car] == nullptr));
             }
             GIVEN("engine_obj2 set as engine for car_obj") {
@@ -72,7 +72,7 @@ SCENARIO("relations between types", "[type, relation]") {
                 THEN("car of engine_obj1 should be nil") {
                     REQUIRE((engine_obj1[car] == nullptr));
                 }
-                THEN("car of engine_obj1 should be equal to car_obj") {
+                THEN("car of engine_obj2 should be equal to car_obj") {
                     REQUIRE((engine_obj2[car] == car_obj));
                 }
             }

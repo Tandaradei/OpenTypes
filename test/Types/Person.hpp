@@ -1,7 +1,7 @@
 #ifndef TYPES_PERSON_HPP
 #define TYPES_PERSON_HPP
 
-#include "src/open_types2.hpp"
+#include "src/open_types.hpp"
 #include "test/Types/Skill.hpp"
 
 OT_TYPE(Person)

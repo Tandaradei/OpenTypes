@@ -15,26 +15,15 @@
           "name": "CMAKE_CXX_FLAGS",
           "value": "/DWIN32 /D_WINDOWS /W3 /GR /EHsc",
           "type": "STRING"
-        }
-      ]
-    },
-    {
-      "name": "x64-Clang-Debug",
-      "generator": "Ninja",
-      "configurationType": "Debug",
-      "buildRoot": "${projectDir}\\out\\build\\${name}",
-      "installRoot": "${projectDir}\\out\\install\\${name}",
-      "cmakeCommandArgs": "-D OUTPUT_NAME=\"clang_cl_64\"",
-      "buildCommandArgs": "-v",
-      "ctestCommandArgs": "",
-      "inheritEnvironments": [ "clang_cl_x64" ],
-      "variables": [
+        },
         {
-          "name": "CMAKE_CXX_FLAGS",
-          "value": "-m64 -fdiagnostics-absolute-paths  /DWIN32 /D_WINDOWS /W3 /GR /EHsc",
-          "type": "STRING"
+          "name": "CMAKE_LINKER",
+          "value": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.22.27905/bin/Hostx64/x64/link.exe",
+          "type": "FILEPATH"
         }
-      ]
+      ],
+      "intelliSenseMode": "windows-msvc-x64",
+      "cmakeExecutable": "C:/Program Files/CMake/bin/cmake.exe"
     },
     {
       "addressSanitizerEnabled": true,
@@ -52,24 +41,57 @@
       "name": "WSL-Clang-Debug",
       "remoteCopySources": true,
       "variables": [],
-      "wslPath": "${defaultWSLPath}"
+      "wslPath": "C:\\Users\\Laurin\\AppData\\Local\\Microsoft\\WindowsApps\\ubuntu1804.exe"
     },
     {
-      "name": "WSL-Debug",
+      "name": "WSL-GCC-Debug",
       "generator": "Unix Makefiles",
       "configurationType": "Debug",
       "buildRoot": "${projectDir}\\out\\build\\${name}",
       "installRoot": "${projectDir}\\out\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
-      "cmakeCommandArgs": "-D OUTPUT_NAME=\"linux_64\"",
+      "cmakeCommandArgs": "-D OUTPUT_NAME=\"linux_gcc_64\"",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "linux_x64" ],
-      "wslPath": "${defaultWSLPath}",
+      "wslPath": "C:\\Users\\Laurin\\AppData\\Local\\Microsoft\\WindowsApps\\ubuntu1804.exe",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "variables": [],
       "addressSanitizerEnabled": true,
       "intelliSenseMode": "linux-gcc-x64"
+    },
+    {
+      "name": "x64-Clang-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "-D OUTPUT_NAME=\"clang_cl_64\"",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "clang_cl_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "C:/Program Files/LLVM/bin/clang-cl.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "C:/Program Files/LLVM/bin/clang-cl.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_RC_COMPILER",
+          "value": "C:/Program Files/LLVM/bin/llvm-rc.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_LINKER",
+          "value": "C:/Program Files/LLVM/bin/lld-link.exe",
+          "type": "FILEPATH"
+        }
+      ]
     }
   ]
 }

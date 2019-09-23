@@ -1,7 +1,7 @@
 #ifndef TYPES_CAR_HPP
 #define TYPES_CAR_HPP
 
-#include "src/open_types2.hpp"
+#include "src/open_types.hpp"
 #include "test/Types/Person.hpp"
 
 OT_TYPE(Engine)

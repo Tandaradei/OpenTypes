@@ -1,7 +1,7 @@
 #ifndef TYPES_LIST_HPP
 #define TYPES_LIST_HPP
 
-#include "src/open_types2.hpp"
+#include "src/open_types.hpp"
 
 OT_TEMPLATE_TYPE(List, T, typename T)
 OT_TEMPLATE_ATTR1(head, List, T, T, typename T)

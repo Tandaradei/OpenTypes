@@ -1,33 +1,20 @@
 #ifndef HELPER_HPP
 #define HELPER_HPP
 
-#include "src/Types/Person.extended.hpp"
+#include <iostream>
 
-void printSkills(Person p) {
-	std::cout << "skills of " << p[name] << ": " << std::endl;
-    for (auto skill : p[skills]) {
-        std::cout << skill[name] << ": " << value(skill) * 100.0f << "%" << std::endl;
+#include "src/Types/Person.hpp"
+#include "src/Types/List.hpp"
+
+template <typename T>
+void printList(List<T> list) {
+	std::cout << list[head<T>];
+    if (list[tail<T>] != nullptr) {
+		std::cout << ", ";
+		printList(tail(list));
 	}
-}
-
-void printTags(Person p) {
-	std::cout << "tags of " << p[name] << ": " << std::endl;
-	for (auto tag : p[tags]) {
-		std::cout << tag << std::endl;
-	}
-}
-
-void printFriends(Person p) {
-	std::cout << "friends of " << p[name] << ": " << std::endl;
-	for (auto friend_ : p[friends]) {
-		std::cout << friend_[name] << std::endl;
-	}
-}
-
-void printCars(Person p) {
-	std::cout << "cars of " << p[name] << ": " << std::endl;
-	for (auto car : p[cars]) {
-		std::cout << car[model] << "(" << car[engine][name] << ")" << std::endl;
+	else {
+		std::cout << "\n";
 	}
 }
 

@@ -1,43 +1,165 @@
 #ifndef OPEN_TYPES_HPP
 #define OPEN_TYPES_HPP
 
-#include <type_traits>
+
+#include <algorithm>
 #include <functional>
-#include <unordered_set>
-#include <string>
+#include <iostream>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
+
 namespace ot {
-    /// Dummy class to differentiate between function declarations
-	struct AttributeDeleter {
-        bool deleteRelation = true;
+    static const bool SHOULD_PRINT_DEBUG = false;
+	/// Dummy class to differentiate between function declarations
+	struct DeleteDefault {
 	};
 
-    /// Base type for all custom types
-    struct Type {
-		std::vector<std::function<void(Type*)>> removers;
-        ~Type() {
-			for (auto remover : removers) {
-                remover(this);
+	template <typename T>
+	struct DeleteByValue {
+		T value;
+		explicit DeleteByValue(T v) : value(v) {}
+	};
+
+	struct DeleteByIndex {
+		size_t index;
+		explicit DeleteByIndex(size_t i) : index(i) {}
+	};
+
+	struct Type {
+
+	public:
+		using Remover = std::function<void(Type*)>;
+
+	public:
+
+		void clear() {
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Called clear for %p\n", this);
+			for (auto& remover : removers) {
+				remover.second(this);
 			}
-        }
-    };
+		}
 
-    /// Reference to nullptr
-	static const std::shared_ptr<Type> nil = nullptr;
+	public:
+		std::unordered_map<std::string, Remover> removers;
+	};
 
-    /// Returns a reference to a new created object
-    inline std::shared_ptr<Type> empty() {
-		return std::make_shared<Type>();
-	}
+	class PtrManager {
+	public:
+		static PtrManager& getInstance() {
+			static PtrManager instance;
+			return instance;
+		}
+		PtrManager(PtrManager const&) = delete;
+		void operator=(PtrManager const&) = delete;
+
+		void inc(Type* t) {
+			ptrs[t]++;
+		}
+		bool dec(Type* t) {
+			if (--ptrs[t] == 0) {
+				t->clear();
+				ptrs.erase(t);
+				return true;
+			}
+			return false;
+		}
+
+	private:
+		PtrManager() {}
+
+	private:
+		std::unordered_map<Type*, size_t> ptrs;
+	};
+
+
+	template <typename T>
+	struct Reference {
+		Reference() 
+			: myPtr(nullptr) {
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Created new nil reference\n");
+		}
+
+		Reference(T* ptr) 
+            : myPtr(ptr) {
+            if(myPtr) {
+				if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Created new reference to %p from raw pointer\n", myPtr);
+                PtrManager::getInstance().inc(myPtr);
+            }
+		}
+		~Reference() {
+			decAndDelete();
+		}
+		Reference(const Reference& other) {
+			decAndDelete();
+			myPtr = other.get();
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Created new reference to %p from other Reference\n", myPtr);
+            if (myPtr) {
+                PtrManager::getInstance().inc(myPtr);
+            }
+		}
+
+		Reference& operator=(const Reference& other) {
+			decAndDelete();
+			myPtr = other.get();
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Set reference to %p\n", myPtr);
+            if (myPtr) {
+                PtrManager::getInstance().inc(myPtr);
+            }
+			return *this;
+		}
+
+		bool operator==(const Reference& other) const {
+			return myPtr == other.get();
+		}
+
+		bool operator!=(const Reference& other) const {
+			return !(*this == other);
+		}
+
+		bool operator==(const T* other) const {
+			return myPtr == other;
+		}
+
+		bool operator!=(const T* other) const {
+			return !(*this == other);
+		}
+
+		operator bool() const {
+			return myPtr != nullptr;
+		}
+
+		T* get() const {
+			return myPtr;
+		}
+
+		static Reference create() {
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Called Reference::create\n");
+			return Reference(new T());
+		}
+
+	private:
+		void decAndDelete() {
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Called decAndDelete for %p\n", myPtr);
+			if (myPtr) {
+				if (PtrManager::getInstance().dec(myPtr)) {
+					if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Delete %p\n", myPtr);
+					delete myPtr;
+					myPtr = nullptr;
+				}
+			}
+		}
+	private:
+		T* myPtr = nullptr;
+	};
 
 	template <typename T>
 	class vector : public std::vector<T> {
 	public:
 		T operator[](const size_t i) {
-            if (this->size() > i) {
-                return this->at(i);
+			if (this->size() > i) {
+				return this->at(i);
 			}
 			else {
 				return T();
@@ -45,63 +167,288 @@ namespace ot {
 		}
 	};
 
-	template <typename O, typename T>
-	struct ItemDeleter {
-		void (*remove)(O, std::function<std::pair<bool, bool>(T, size_t)>);
-		std::function<std::pair<bool, bool>(T, size_t)> shouldRemove;
+	template <typename A, typename B>
+	struct LinkedAttributes11 {
+		std::unordered_map<A*, B*> a_to_b;
+		std::unordered_map<B*, A*> b_to_a;
+
+		B* getA(A* a) {
+			if (!a) { return nullptr; }
+			auto it = a_to_b.find(a);
+			if (it != a_to_b.end()) { return it->second; };
+			return nullptr;
+		}
+
+		A* getB(B* b) {
+			if (!b) { return nullptr; }
+			auto it = b_to_a.find(b);
+			if (it != b_to_a.end()) { return it->second; };
+			return nullptr;
+		}
+
+		void setA(A* a, B* b) {
+			if (!a || !b) { return; }
+			if (a_to_b[a] == b) { return; }
+			// if a has a connection, remove the connection from the connected b
+			auto it_a = a_to_b.find(a);
+			if (it_a != a_to_b.end()) { b_to_a.erase(it_a->second); };
+			// set new b
+			a_to_b[a] = b;
+			// if b has a connection, remove the connection from the connected a
+			auto it_b = b_to_a.find(b);
+			if (it_b != b_to_a.end()) { a_to_b.erase(it_b->second); };
+			b_to_a[b] = a;
+		}
+
+		void setB(B* b, A* a) {
+			setA(a, b);
+		}
+
+		void removeA(A* a) {
+			// if a has a connection, remove the connection from the connected b
+			auto it_a = a_to_b.find(a);
+			if (it_a != a_to_b.end()) { b_to_a.erase(it_a->second); };
+			a_to_b.erase(a);
+		}
+
+		void removeB(B* b) {
+			// if b has a connection, remove the connection from the connected a
+			auto it_b = b_to_a.find(b);
+			if (it_b != b_to_a.end()) { a_to_b.erase(it_b->second); };
+			b_to_a.erase(b);
+		}
 	};
 
+	template <typename A, typename B>
+	struct LinkedAttributes1N {
+		std::unordered_map<A*, ot::vector<B*>> a_to_b;
+		std::unordered_map<B*, A*> b_to_a;
+
+		ot::vector<B*> getList(A* a) {
+			if (!a) { return ot::vector<B*>(); }
+			auto it = a_to_b.find(a);
+			if (it != a_to_b.end()) { return it->second; };
+			return ot::vector<B*>();
+		}
+
+		A* getSingle(B* b) {
+			if (!b) { return nullptr; }
+			auto it = b_to_a.find(b);
+			if (it != b_to_a.end()) { return it->second; };
+			return nullptr;
+		}
+
+		void setInList(A* a, B* b) {
+			if (!a || !b) { return; }
+			// Removes b from old list, and set it's connection to a
+			auto it_b = b_to_a.find(b);
+			if (it_b != b_to_a.end()) {
+				auto& vec = a_to_b[it_b->second];
+				vec.erase(std::remove(vec.begin(), vec.end(), b));
+				if (vec.size() == 0) {
+					a_to_b.erase(it_b->second);
+				}
+			};
+			b_to_a[b] = a;
+
+			if (a_to_b.find(a) == a_to_b.end()) { 
+				// Create new vector and initialize with b
+				a_to_b[a] = ot::vector<B*>();
+			}
+			a_to_b[a].push_back(b);
+		}
+
+		void setSingle(B* b, A* a) {
+			setInList(a, b);
+		}
+
+		void removeA(A* a) {
+			if (!a) { return;  }
+			auto it_a = a_to_b.find(a);
+			if (it_a != a_to_b.end()) {
+				for (B* b : it_a->second) {
+					b_to_a.erase(b);
+				}
+				a_to_b.erase(a);
+			}
+		}
+
+		void removeB(B* b) {
+			if (!b) { return; }
+			auto it_b = b_to_a.find(b);
+			if (it_b != b_to_a.end()) {
+				auto& vec = a_to_b[it_b->second];
+				vec.erase(std::remove(vec.begin(), vec.end(), b));
+				if (vec.size() == 0) {
+					a_to_b.erase(it_b->second);
+				}
+				b_to_a.erase(b);
+			};
+		}
+	};
+
+	template <typename A, typename B>
+	struct LinkedAttributesNN {
+		std::unordered_map<A*, ot::vector<B*>> a_to_b;
+		std::unordered_map<B*, ot::vector<A*>> b_to_a;
+
+		ot::vector<B*> getListA(A* a) {
+			if (!a) { return ot::vector<B*>(); }
+			auto it = a_to_b.find(a);
+			if (it != a_to_b.end()) { return it->second; }
+			return ot::vector<B*>();
+		}
+
+		ot::vector<A*> getListB(B* a) {
+			if (!a) { return ot::vector<A*>(); }
+			auto it = b_to_a.find(a);
+			if (it != b_to_a.end()) { return it->second; }
+			return ot::vector<A*>();
+		}
+
+		void setInListA(A* a, B* b) {
+			if (!a || !b) { return; }
+
+			if (b_to_a.find(b) == b_to_a.end()) {
+				b_to_a[b] = ot::vector<A*>();
+			};
+			b_to_a[b].push_back(a);
+
+			if (a_to_b.find(a) == a_to_b.end()) {
+				a_to_b[a] = ot::vector<B*>();
+			}
+			a_to_b[a].push_back(b);
+		}
+
+		void setInListB(B* b, A* a) {
+			setInListA(a, b);
+		}
+
+		void removeA(A* a) {
+			if (!a) { return; }
+			auto it_a = a_to_b.find(a);
+			if (it_a != a_to_b.end()) {
+				for (B* b : it_a->second) {
+					auto& vec = b_to_a[b];
+					vec.erase(std::remove(vec.begin(), vec.end(), a));
+					if (vec.size() == 0) {
+						b_to_a.erase(b);
+					}
+				}
+				a_to_b.erase(a);
+			}
+		}
+
+		void removeB(B* b) {
+			if (!b) { return; }
+			auto it_b = b_to_a.find(b);
+			if (it_b != b_to_a.end()) {
+				for (A* a : it_b->second) {
+					auto& vec = a_to_b[a];
+					vec.erase(std::remove(vec.begin(), vec.end(), b));
+					if (vec.size() == 0) {
+						a_to_b.erase(a);
+					}
+				}
+				b_to_a.erase(b);
+			}
+		}
+	};
 }
 
-// *** Base ***
-#define TYPE(TypeName) \
-    struct TypeName : public std::shared_ptr<ot::Type> { \
-        TypeName() : std::shared_ptr<ot::Type>() {} \
-        TypeName(const std::shared_ptr<ot::Type>& other) : std::shared_ptr<ot::Type>(other){} \
-        /* Write attribute on construction */ \
-        template <typename AttrType> \
-        TypeName(void (*write)(TypeName, AttrType), AttrType value) \
-        : std::shared_ptr<ot::Type>(std::make_shared<ot::Type>()) { \
+#define OT_TYPE(TypeName) \
+	namespace ot_types { \
+		struct TypeName : public ot::Type { \
+            ~TypeName(){ if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Destructor of ot_types::%s called!\n", #TypeName);} \
+			/* Read attribute value */ \
+			template <typename AttrType> \
+			AttrType operator[](AttrType (*read)(TypeName*)) { \
+				return read(this); \
+			} \
+			/* Write attribute / Add value to attribute list */ \
+			template <typename AttrType> \
+            TypeName& operator()(void (*write)(TypeName*, AttrType), AttrType value) { \
+				write(this, value); \
+                return *this; \
+			} \
+			/* Write value to position in attribute list */ \
+			template <typename AttrType> \
+            TypeName& operator()(void (*writeAt)(TypeName*, size_t, AttrType), size_t i, AttrType value) { \
+				writeAt(this, i, value); \
+                return *this; \
+			} \
+			/* Remove attribute value / entire list */ \
+			void operator-=(void (*remove)(TypeName*, ot::DeleteDefault)) { \
+				remove(this, {}); \
+			} \
+			/*  Remove all elements with value from attribute list */ \
+			template <typename AttrType> \
+			void deleteByValue(void (*removeFromList)(TypeName*, ot::DeleteByValue<AttrType>), ot::DeleteByValue<AttrType> deleter) { \
+				removeFromList(this, deleter); \
+			} \
+			/*  Remove value at index from attribute list */ \
+			template <typename AttrType> \
+			void deleteByIndex(void (*removeFromList)(TypeName*, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
+				removeFromList(this, deleter); \
+			} \
+		}; \
+	} \
+	struct TypeName : public ot::Reference<ot_types::TypeName> { \
+        static TypeName create() { return ot::Reference<ot_types::TypeName>::create(); } \
+        static TypeName nil() { return ot::Reference<ot_types::TypeName>(nullptr); } \
+		TypeName() : ot::Reference<ot_types::TypeName>() {} \
+		TypeName(ot_types::TypeName* other) : ot::Reference<ot_types::TypeName>(other){} \
+		TypeName(const ot::Reference<ot_types::TypeName>& other) : ot::Reference<ot_types::TypeName>(other){} \
+        ~TypeName(){ if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Destructor of %s called\n", #TypeName);} \
+		/* Write attribute on construction */ \
+		template <typename AttrType> \
+		TypeName(void (*write)(TypeName&, AttrType), AttrType value) \
+		: ot::Reference<ot_types::TypeName>(ot::Reference<ot_types::TypeName>::create()) { \
 			write(*this, value); \
 		} \
 		/* Read attribute value */ \
         template <typename AttrType> \
-        AttrType operator[](AttrType (*read)(TypeName)) const { \
+        AttrType operator[](AttrType (*read)(const TypeName&)) const { \
 			return read(*this); \
 		} \
 		/* Write attribute / Add value to attribute list */ \
         template <typename AttrType> \
-        TypeName& operator()(void (*write)(TypeName, AttrType), AttrType value) { \
+        TypeName& operator()(void (*write)(TypeName&, AttrType), AttrType value) { \
 			write(*this, value); \
 			return *this; \
 		} \
 		/* Write value to position in attribute list */ \
 		template <typename AttrType> \
-		TypeName& operator()(void (*writeAt)(TypeName, size_t, AttrType), size_t i, AttrType value) { \
+		TypeName& operator()(void (*writeAt)(TypeName&, size_t, AttrType), size_t i, AttrType value) { \
 			writeAt(*this, i, value); \
 			return *this; \
 		} \
-		/* Remove attribute value */ \
-		void operator-=(void (*remove)(TypeName, ot::AttributeDeleter)) { \
+		/* Remove attribute value / entire list */ \
+		void operator-=(void (*remove)(TypeName&, ot::DeleteDefault)) { \
 			remove(*this, {}); \
 		} \
-		/* Remove value from attribute list */ \
+		/*  Remove all elements with value from attribute list */ \
 		template <typename AttrType> \
-		void operator-=(ot::ItemDeleter<TypeName, AttrType> itemDeleter) { \
-			itemDeleter.remove(*this, itemDeleter.shouldRemove); \
+		void deleteByValue(void (*removeFromList)(TypeName&, ot::DeleteByValue<AttrType>), ot::DeleteByValue<AttrType> deleter) { \
+			removeFromList(*this, deleter); \
 		} \
-    };
+		/*  Remove value at index from attribute list */ \
+		template <typename AttrType> \
+		void deleteByIndex(void (*removeFromList)(TypeName&, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
+			removeFromList(*this, deleter); \
+		} \
+	}; \
 
-#define ATTR1(AttrName, TypeName, AttrType) \
+#define OT_ATTR1(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
-    inline std::unordered_set<ot::Type*, AttrType>& TypeName ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, AttrType> attrMap; \
+    inline std::unordered_map<ot_types::TypeName*, AttrType>& TypeName ##_ ##AttrName() { \
+        static std::unordered_map<ot_types::TypeName*, AttrType> attrMap; \
         return attrMap; \
     } \
 	/* Read */ \
-    inline AttrType AttrName(TypeName object) { \
+    inline AttrType AttrName(ot_types::TypeName* ptr) { \
         auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
             return it->second; \
         } \
@@ -109,39 +456,49 @@ namespace ot {
             return AttrType(); \
         } \
     } \
+    inline AttrType AttrName(const TypeName& object) { \
+       return AttrName(object.get()); \
+	} \
 	/* Write */ \
-    inline void AttrName(TypeName object, AttrType value) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-            it->second = std::move(value); \
-        } \
-        else { \
-            attrMap.emplace(object.get(), std::move(value)); \
-			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type* object_ptr){ \
-				auto& attrMap = TypeName ##_ ##AttrName(); \
-				attrMap.erase(object_ptr); \
-			}); \
-        } \
-    } \
-	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
+	inline void AttrName(ot_types::TypeName* ptr, AttrType value) { \
+		if (!ptr) { return; } /* Don't write on nullptr objects */ \
 		auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
+		auto it = attrMap.find(ptr); \
+		if (it != attrMap.cend()) { \
+			it->second = std::move(value); \
+		} \
+		else { \
+			attrMap.emplace(ptr, std::move(value)); \
+			/* Add remover to delete attributes on object descruction */ \
+			ptr->removers[#AttrName] = [](ot::Type* ptr) { \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Remover for %s::%s called\n", #TypeName, #AttrName); \
+				auto& attrMap = TypeName ##_ ##AttrName(); \
+                attrMap.erase(static_cast<ot_types::TypeName*>(ptr)); \
+			}; \
+		} \
+    } \
+	inline void AttrName(TypeName& object, AttrType valueWithLongNameToAvoidNameCollisions) { \
+		AttrName(object.get(), valueWithLongNameToAvoidNameCollisions); \
+	} \
+	/* Remove */ \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        attrMap.erase(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault deleter) { \
+		AttrName(object.get(), deleter); \
 	} 
 
-#define ATTRN(AttrName, TypeName, AttrType) \
+#define OT_ATTRN(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
-    inline std::unordered_set<ot::Type*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, ot::vector<AttrType>> attrMap; \
+    inline std::unordered_map<ot_types::TypeName*, ot::vector<AttrType>>& TypeName ##_ ##AttrName() { \
+        static std::unordered_map<ot_types::TypeName*, ot::vector<AttrType>> attrMap; \
         return attrMap; \
     } \
 	/* Read complete list */ \
-    inline ot::vector<AttrType> AttrName(TypeName object) { \
+    inline ot::vector<AttrType> AttrName(ot_types::TypeName* ptr) { \
         auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
 			return it->second; \
         } \
@@ -149,84 +506,185 @@ namespace ot {
             return ot::vector<AttrType>(); \
         } \
     } \
+	inline ot::vector<AttrType> AttrName(const TypeName& object) { \
+		return AttrName(object.get()); \
+	} \
 	/* Add item at end */ \
-    inline void AttrName(TypeName object, AttrType value) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it == attrMap.cend()) { \
-			it = attrMap.emplace(object.get(), ot::vector<AttrType>()).first; \
+    inline void AttrName(ot_types::TypeName* ptr, AttrType value) { \
+		if (!ptr) { return; } /* Don't write on nil objects */ \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+		auto it = attrMap.find(ptr); \
+		if (it == attrMap.cend()) { \
+			it = attrMap.emplace(ptr, ot::vector<AttrType>()).first; \
 			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type* object_ptr){ \
+			ptr->removers[#AttrName] = [](ot::Type* ptr){ \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: List-Remover for %s::%s called\n", #TypeName, #AttrName); \
 				auto& attrMap = TypeName ##_ ##AttrName(); \
-				attrMap.erase(object_ptr); \
-			}); \
-        } \
+                attrMap.erase(static_cast<ot_types::TypeName*>(ptr)); \
+			}; \
+		} \
 		it->second.emplace_back(std::move(value)); \
-    } \
+	} \
+	inline void AttrName(TypeName& object, AttrType valueWithLongNameToAvoidNameCollisions) { \
+		AttrName(object.get(), valueWithLongNameToAvoidNameCollisions); \
+	} \
 	/* Add item at position */ \
-    inline void AttrName(TypeName object, size_t i, AttrType value) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
+	inline void AttrName(ot_types::TypeName* ptr, size_t i, AttrType value) { \
+		if (!ptr) { return; } /* Don't write on nil objects */ \
         auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
 			if(it->second.size() > i) { \
-				it->second.insert(begin(it->second) + i, std::move(value)); \
+                it->second.insert(begin(it->second) + static_cast<long>(i), std::move(value)); \
 			} \
 			else { \
-				AttrName(object, value); /* Add item at end */ \
+				AttrName(ptr, value); /* Add item at end */ \
 			} \
-        } \
-		else { \
-			AttrName(object, value);  /* Create list and add item at end */ \
 		} \
-    } \
-	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
+		else { \
+			AttrName(ptr, value);  /* Create list and add item at end */ \
+		} \
 	} \
-	/* Remove item */ \
-	inline void AttrName(TypeName object, std::function<std::pair<bool, bool> (AttrType value, size_t index)> remover) { \
+	inline void AttrName(TypeName& object, size_t i, AttrType valueWithLongNameToAvoidNameCollisions) { \
+		AttrName(object.get(), i, valueWithLongNameToAvoidNameCollisions); \
+	} \
+	/* Remove entire list */ \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
 		auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+		attrMap.erase(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault deleter) { \
+		AttrName(object.get(), deleter); \
+	} \
+	/* Remove items by value */ \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteByValue<AttrType> deleter) { \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
 			auto& values = it->second; \
-			size_t index = 0; \
 			for (auto v_it = begin(values); v_it != end(values);) { \
-				auto result = remover(*v_it, index); \
-				if (result.first) { \
+				if (*v_it == deleter.value) { \
 					v_it = values.erase(v_it); \
-					if (!result.second) { \
-						break; \
-					} \
 				} \
 				else { v_it++; } \
-				index++; \
 			} \
 		} \
-	} 
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteByValue<AttrType> deleter) { \
+		AttrName(object.get(), deleter); \
+	} \
+	/* Remove item by index */ \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteByIndex deleter) { \
+		auto& attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(ptr); \
+        if (it != attrMap.cend()) { \
+			auto& values = it->second; \
+			if (values.size() > deleter.index) { \
+                values.erase(begin(values) + static_cast<long>(deleter.index)); \
+			} \
+		} \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteByIndex deleter) { \
+		AttrName(object.get(), deleter); \
+	}
 
 // *** Templated Types and Attributes ***
 
 #define COMMA ,
 
-#define TEMPLATE_TYPE(TypeName, TemplateArgs) \
+#define OT_TEMPLATE_TYPE(TypeName, TemplateArgsName, TemplateArgs) \
+	namespace ot_types { \
+		template <TemplateArgs> \
+		struct TypeName : public ot::Type { \
+			/* Read attribute value */ \
+			template <typename AttrType> \
+			AttrType operator[](AttrType (*read)(TypeName*)) { \
+				return read(this); \
+			} \
+			/* Write attribute / Add value to attribute list */ \
+			template <typename AttrType> \
+			TypeName* operator()(void (*write)(TypeName*, AttrType), AttrType value) { \
+				write(this, value); \
+				return this; \
+			} \
+			/* Write value to position in attribute list */ \
+			template <typename AttrType> \
+			TypeName* operator()(void (*writeAt)(TypeName*, size_t, AttrType), size_t i, AttrType value) { \
+				writeAt(this, i, value); \
+				return this; \
+			} \
+			/* Remove attribute value / entire list */ \
+			void operator-=(void (*remove)(TypeName*, ot::DeleteDefault)) { \
+				remove(this, {}); \
+			} \
+			/*  Remove all elements with value from attribute list */ \
+			template <typename AttrType> \
+			void deleteByValue(void (*removeFromList)(TypeName*, ot::DeleteByValue<AttrType>), ot::DeleteByValue<AttrType> deleter) { \
+				removeFromList(this, deleter); \
+			} \
+			/*  Remove value at index from attribute list */ \
+			template <typename AttrType> \
+			void deleteByIndex(void (*removeFromList)(TypeName*, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
+				removeFromList(this, deleter); \
+			} \
+		}; \
+	} \
 	template <TemplateArgs> \
-	TYPE(TypeName)
+	struct TypeName : public ot::Reference<ot_types::TypeName<TemplateArgsName>> { \
+		static TypeName create() { return ot::Reference<ot_types::TypeName<TemplateArgsName>>::create(); } \
+		TypeName() : ot::Reference<ot_types::TypeName<TemplateArgsName>>() {} \
+        TypeName(const ot::Reference<ot_types::TypeName<TemplateArgsName>>& other) : ot::Reference<ot_types::TypeName<TemplateArgsName>>(other){} \
+		/* Write attribute on construction */ \
+		template <typename AttrType> \
+		TypeName(void (*write)(TypeName&, AttrType), AttrType value) \
+		: ot::Reference<ot_types::TypeName<TemplateArgsName>>(ot::Reference<ot_types::TypeName<TemplateArgsName>>::create()) { \
+			write(*this, value); \
+		} \
+		/* Read attribute value */ \
+        template <typename AttrType> \
+        AttrType operator[](AttrType (*read)(const TypeName&)) const { \
+			return read(*this); \
+		} \
+		/* Write attribute / Add value to attribute list */ \
+        template <typename AttrType> \
+        TypeName& operator()(void (*write)(TypeName&, AttrType), AttrType value) { \
+			write(*this, value); \
+			return *this; \
+		} \
+		/* Write value to position in attribute list */ \
+		template <typename AttrType> \
+		TypeName& operator()(void (*writeAt)(TypeName&, size_t, AttrType), size_t i, AttrType value) { \
+			writeAt(*this, i, value); \
+			return *this; \
+		} \
+		/* Remove attribute value / entire list */ \
+		void operator-=(void (*remove)(TypeName&, ot::DeleteDefault)) { \
+			remove(*this, {}); \
+		} \
+		/*  Remove all elements with value from attribute list */ \
+		template <typename AttrType> \
+		void deleteByValue(void (*removeFromList)(TypeName&, ot::DeleteByValue<AttrType>), ot::DeleteByValue<AttrType> deleter) { \
+			removeFromList(*this, deleter); \
+		} \
+		/*  Remove value at index from attribute list */ \
+		template <typename AttrType> \
+		void deleteByIndex(void (*removeFromList)(TypeName&, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
+			removeFromList(*this, deleter); \
+		} \
+	};
 
-#define TEMPLATE_ATTR1(AttrName, TypeNameBase, TemplateArgsNames, AttrType, TemplateArgs) \
+#define OT_TEMPLATE_ATTR1(AttrName, TypeNameBase, TemplateArgsNames, AttrType, TemplateArgs) \
 	/* Attribute map */ \
 	template <TemplateArgs> \
-    inline std::unordered_set<ot::Type*, AttrType>& TypeNameBase ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, AttrType> attrMap; \
+    inline std::unordered_map<ot_types::TypeNameBase<TemplateArgsNames>*, AttrType>& TypeNameBase ##_ ##AttrName() { \
+        static std::unordered_map<ot_types::TypeNameBase<TemplateArgsNames>*, AttrType> attrMap; \
         return attrMap; \
     } \
 	/* Read */ \
 	template <TemplateArgs> \
-    inline AttrType AttrName(TypeNameBase<TemplateArgsNames> object) { \
+    inline AttrType AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr) { \
         auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
-        auto it = attrMap.find(object.get()); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
             return it->second; \
         } \
@@ -234,369 +692,319 @@ namespace ot {
             return AttrType(); \
         } \
     } \
+	template <TemplateArgs> \
+    inline AttrType AttrName(const TypeNameBase<TemplateArgsNames>& object) { \
+        return AttrName(object.get()); \
+	} \
 	/* Write */ \
 	template <TemplateArgs> \
-    inline void AttrName(TypeNameBase<TemplateArgsNames> object, AttrType value) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
-        auto it = attrMap.find(object.get()); \
+	inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, AttrType value) {\
+		if (!ptr) { return; } /* Don't write on nil objects */ \
+		auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
             it->second = std::move(value); \
         } \
         else { \
-            attrMap.emplace(object.get(), std::move(value)); \
+            attrMap.emplace(ptr, std::move(value)); \
 			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type* object_ptr){ \
+			ptr->removers[#AttrName] = [](ot::Type* ptr){ \
 				auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
-				attrMap.erase(object_ptr); \
-			}); \
+                attrMap.erase(static_cast<ot_types::TypeNameBase<TemplateArgsNames>*>(ptr)); \
+			}; \
         } \
     } \
+	template <TemplateArgs> \
+    inline void AttrName(TypeNameBase<TemplateArgsNames>& object, AttrType valueWithLongNameToAvoidNameCollisions) { \
+		AttrName(object.get(), valueWithLongNameToAvoidNameCollisions); \
+	} \
 	/* Remove */ \
 	template <TemplateArgs> \
-	inline void AttrName(TypeNameBase<TemplateArgsNames> object, ot::AttributeDeleter) { \
+	inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, ot::DeleteDefault) { \
 		auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
-        attrMap.erase(object.get()); \
-    }
-
-// *** Relations ***
-
-#define ATTR11Link(AttrName, TypeName, TypeNameOther, AttrNameOther) \
-	/* Attribute map */ \
-    inline std::unordered_set<ot::Type*, TypeNameOther>& TypeName ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, TypeNameOther> attrMap; \
-        return attrMap; \
-	} \
-	/* Read */ \
-    inline TypeNameOther AttrName(TypeName object) { \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-            return it->second; \
-        } \
-        else { \
-            return ot::nil; \
-        } \
+        attrMap.erase(ptr); \
     } \
-	/* Write */ \
-    inline void AttrName(TypeName object, TypeNameOther other) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-            AttrNameOther(it->second, ot::AttributeDeleter {}); \
-            it->second = other; \
-        } \
-        else { \
-            attrMap.emplace(object.get(), other); \
-			/* Add remover to delete attributes on object descruction */ \
-            object.get()->removers.emplace_back([](ot::Type * object_ptr) { \
-                auto& attrMap = TypeName ##_ ##AttrName(); \
-                auto it = attrMap.find(object_ptr); \
-                if(it != attrMap.cend()) { \
-                    attrMap.erase(object_ptr); \
-                    AttrNameOther(it->second, ot::AttributeDeleter { false }); \
-                } \
-            }); \
-        } \
-		if(AttrNameOther(other) != object) { \
-			AttrNameOther(other, object); \
-		} \
-    } \
-	/* Remove */ \
-    inline void AttrName(TypeName object, ot::AttributeDeleter deleter) { \
-        if(!object) { return; } \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-		auto other = AttrName(object); \
-		attrMap.erase(object.get()); \
-        if(deleter.deleteRelation && other != ot::nil) { \
-            AttrNameOther(other, ot::AttributeDeleter { false }); \
-		} \
-	} 
-
-#define ATTRN1Link(AttrName, TypeName, TypeNameOther, AttrNameOther) \
-	/* Attribute map */ \
-    inline std::unordered_set<ot::Type*, ot::vector<TypeNameOther>>& TypeName ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, ot::vector<TypeNameOther>> attrMap; \
-        return attrMap; \
-	} \
-	/* Read */ \
-    inline ot::vector<TypeNameOther> AttrName(TypeName object) { \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-            return it->second; \
-        } \
-        else { \
-            return ot::vector<TypeNameOther>(); \
-        } \
-    } \
-	/* Add item at end */ \
-    inline void AttrName(TypeName object, TypeNameOther other) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it == attrMap.cend()) { \
-			it = attrMap.emplace(object.get(), ot::vector<TypeNameOther>()).first; \
-			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type* object_ptr){ \
-				auto& attrMap = TypeName ##_ ##AttrName(); \
-				attrMap.erase(object_ptr); \
-			}); \
-        } \
-		it->second.emplace_back(other); \
-		if(AttrNameOther(other) != object) { \
-			AttrNameOther(other, object); \
-		} \
-    } \
-	/* Add item at position */ \
-    inline void AttrName(TypeName object, size_t i, TypeNameOther other) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-			if(it->second.size() > i) { \
-                it->second.insert(begin(it->second) + static_cast<long>(i), other); \
-			} \
-			else { \
-				AttrName(object, other); \
-			} \
-		} \
-		if(AttrNameOther(other) != object) { \
-			AttrNameOther(other, object); \
-		} \
-    } \
-	/* Remove item */ \
-	inline void AttrName(TypeName object, std::function<std::pair<bool, bool> (TypeNameOther value, size_t index)> remover) { \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-			auto& values = it->second; \
-			size_t index = 0; \
-			for (auto v_it = begin(values); v_it != end(values);) { \
-				auto result = remover(*v_it, index); \
-				if (result.first) { \
-					TypeNameOther other = *v_it; \
-					v_it = values.erase(v_it); \
-					if(other != ot::nil) { \
-						AttrNameOther(other, ot::AttributeDeleter {}); \
-					} \
-					if (!result.second) { \
-						break; \
-					} \
-				} \
-				else { v_it++; } \
-				index++; \
-			} \
-		} \
-	} \
-	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
-		object -= REMOVE_ALL(AttrName, TypeName, TypeNameOther); \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
-	} 
-
-#define ATTR1NLink(AttrName, TypeName, TypeNameOther, AttrNameOther) \
-	/* Attribute map */ \
-    inline std::unordered_set<ot::Type*, TypeNameOther>& TypeName ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, TypeNameOther> attrMap; \
-        return attrMap; \
-	} \
-	/* Read */ \
-    inline TypeNameOther AttrName(TypeName object) { \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-            return it->second; \
-        } \
-        else { \
-            return ot::nil; \
-        } \
-    } \
-	/* Write */ \
-    inline void AttrName(TypeName object, TypeNameOther other) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it != attrMap.cend()) { \
-			AttrNameOther(it->second, ot::AttributeDeleter {}); \
-            it->second = other; \
-        } \
-        else { \
-            attrMap.emplace(object.get(), other); \
-			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type * object_ptr) { auto& attrMap = TypeName ##_ ##AttrName(); attrMap.erase(object_ptr); }); \
-        } \
-		bool found = false; \
-		auto list = AttrNameOther(other); \
-		for(auto value : list) { \
-			if(value == object) { \
-				found = true; \
-				break; \
-			} \
-		} \
-		if(!found) { AttrNameOther(other, object); } \
-    } \
-	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-		auto other = AttrName(object); \
-		attrMap.erase(object.get()); \
-		if(other != ot::nil) { \
-			AttrNameOther(other, ot::AttributeDeleter {}); \
-		} \
+	template <TemplateArgs> \
+	inline void AttrName(TypeNameBase<TemplateArgsNames>& object, ot::DeleteDefault) { \
+		AttrName(object.get(), {}); \
 	}
 
-#define ATTRNNLink(AttrName, TypeName, TypeNameOther, AttrNameOther) \
+#define OT_TEMPLATE_ATTRN(AttrName, TypeNameBase, TemplateArgsNames, AttrType, TemplateArgs) \
 	/* Attribute map */ \
-    inline std::unordered_set<ot::Type*, ot::vector<TypeNameOther>>& TypeName ##_ ##AttrName() { \
-        static std::unordered_set<ot::Type*, ot::vector<TypeNameOther>> attrMap; \
+	template <TemplateArgs> \
+    inline std::unordered_map<ot_types::TypeNameBase<TemplateArgsNames>*, ot::vector<AttrType>>& TypeNameBase ##_ ##AttrName() { \
+        static std::unordered_map<ot_types::TypeNameBase<TemplateArgsNames>*, ot::vector<AttrType>> attrMap; \
         return attrMap; \
-	} \
+    } \
 	/* Read */ \
-    inline ot::vector<TypeNameOther> AttrName(TypeName object) { \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+	template <TemplateArgs> \
+    inline ot::vector<AttrType> AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr) { \
+        auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
             return it->second; \
         } \
         else { \
-            return ot::vector<TypeNameOther>(); \
+            return ot::vector<AttrType>(); \
         } \
     } \
+	template <TemplateArgs> \
+    inline ot::vector<AttrType> AttrName(const TypeNameBase<TemplateArgsNames>& object) { \
+        return AttrName(object.get()); \
+	} \
 	/* Add item at end */ \
-    inline void AttrName(TypeName object, TypeNameOther other) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
-        if (it == attrMap.cend()) { \
-			it = attrMap.emplace(object.get(), ot::vector<TypeNameOther>()).first; \
+	template <TemplateArgs> \
+    inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, AttrType value) { \
+		if (!ptr) { return; } /* Don't write on nil objects */ \
+		auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
+		auto it = attrMap.find(ptr); \
+		if (it == attrMap.cend()) { \
+			it = attrMap.emplace(ptr, ot::vector<AttrType>()).first; \
 			/* Add remover to delete attributes on object descruction */ \
-			object.get()->removers.emplace_back([](ot::Type* object_ptr){ \
-				auto& attrMap = TypeName ##_ ##AttrName(); \
-				attrMap.erase(object_ptr); \
-			}); \
-        } \
-		it->second.emplace_back(other); \
-		bool found = false; \
-		auto list = AttrNameOther(other); \
-		for(auto value : list) { \
-			if(value == object) { \
-				found = true; \
-				break; \
-			} \
+			ptr->removers[#AttrName] = [](ot::Type* ptr){ \
+                if(ot::SHOULD_PRINT_DEBUG) printf("DEBUG: List-Remover for %s<%s>::%s called\n", #TypeNameBase, #TemplateArgsNames, #AttrName); \
+				auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
+                attrMap.erase(static_cast<ot_types::TypeNameBase<TemplateArgsNames>*>(ptr)); \
+			}; \
 		} \
-		if(!found) { AttrNameOther(other, object); } \
-    } \
+		it->second.emplace_back(std::move(value)); \
+	} \
+	template <TemplateArgs> \
+	inline void AttrName(TypeNameBase<TemplateArgsNames> object, AttrType valueWithLongNameToAvoidNameCollisions) { \
+		AttrName(object.get(), valueWithLongNameToAvoidNameCollisions); \
+	} \
 	/* Add item at position */ \
-    inline void AttrName(TypeName object, size_t i, TypeNameOther other) { \
-		if (!object) { return; } /* Don't write on nil objects */ \
-        auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+	template <TemplateArgs> \
+	inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, size_t i, AttrType value) { \
+		if (!ptr) { return; } /* Don't write on nil objects */ \
+        auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
 			if(it->second.size() > i) { \
-				it->second.insert(begin(it->second) + i, other); \
+				it->second.insert(begin(it->second) + i, std::move(value)); \
 			} \
 			else { \
-				AttrName(object, other); \
+				AttrName(ptr, value); /* Add item at end */ \
 			} \
 		} \
-		bool found = false; \
-		auto list = AttrNameOther(other); \
-		for(auto value : list) { \
-			if(value == object) { \
-				found = true; \
-				break; \
-			} \
+		else { \
+			AttrName(ptr, value);  /* Create list and add item at end */ \
 		} \
-		if(!found) { AttrNameOther(other, i, object); } \
-    } \
-	/* Remove item */ \
-	inline void AttrName(TypeName object, std::function<std::pair<bool, bool> (TypeNameOther value, size_t index)> remover) { \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-        auto it = attrMap.find(object.get()); \
+	} \
+	template <TemplateArgs> \
+	inline void AttrName(TypeNameBase<TemplateArgsNames>& object, size_t i, AttrType valueWithLongNameToAvoidNameCollisions) { \
+		AttrName(object.get(), i, valueWithLongNameToAvoidNameCollisions); \
+	} \
+	/* Remove entire list */ \
+	template <TemplateArgs> \
+	inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, ot::DeleteDefault) { \
+		auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
+		attrMap.erase(ptr); \
+	} \
+	template <TemplateArgs> \
+	inline void AttrName(TypeNameBase<TemplateArgsNames>& object, ot::DeleteDefault deleter) { \
+		AttrName(object.get(), deleter); \
+	} \
+	/* Remove items by value */ \
+	template <TemplateArgs> \
+	inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, ot::DeleteByValue<AttrType> deleter) { \
+		auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
         if (it != attrMap.cend()) { \
 			auto& values = it->second; \
-			size_t index = 0; \
 			for (auto v_it = begin(values); v_it != end(values);) { \
-				auto result = remover(*v_it, index); \
-				if (result.first) { \
-					TypeNameOther other = *v_it; \
+				if (*v_it == deleter.value) { \
 					v_it = values.erase(v_it); \
-					auto list = AttrNameOther(other); \
-					for(auto value : list) { \
-						if(value == object) { \
-							AttrNameOther(other, [object](TypeNameOther value, size_t index) -> std::pair<bool, bool> { \
-									return { value == object, true }; \
-								} \
-							); \
-						} \
-					} \
-					if (!result.second) { \
-						break; \
-					} \
 				} \
 				else { v_it++; } \
-				index++; \
 			} \
 		} \
 	} \
-	/* Remove */ \
-	inline void AttrName(TypeName object, ot::AttributeDeleter) { \
-		object -= REMOVE_ALL(AttrName, TypeName, TypeNameOther); \
-		auto& attrMap = TypeName ##_ ##AttrName(); \
-        attrMap.erase(object.get()); \
+	template <TemplateArgs> \
+	inline void AttrName(TypeNameBase<TemplateArgsNames>& object, ot::DeleteByValue<AttrType> deleter) { \
+		AttrName(object.get(), deleter); \
+	} \
+	/* Remove item by index */ \
+	template <TemplateArgs> \
+	inline void AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, ot::DeleteByIndex deleter) { \
+		auto& attrMap = TypeName ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
+        if (it != attrMap.cend()) { \
+			auto& values = it->second; \
+			if (values.size() > deleter.index) { \
+				values.erase(begin(values) + deleter.index); \
+			} \
+		} \
+	} \
+	template <TemplateArgs> \
+	inline void AttrName(TypeNameBase<TemplateArgsNames>& object, ot::DeleteByIndex deleter) { \
+		AttrName(object.get(), deleter); \
 	}
 
-#define REL11(AttrName1, TypeName1, TypeName2, AttrName2) \
-	/* Prototypes */ \
-	TypeName1 AttrName2(TypeName2); \
-	void AttrName2(TypeName2, TypeName1); \
-	void AttrName2(TypeName2, ot::AttributeDeleter); \
-    ATTR11Link(AttrName1, TypeName1, TypeName2, AttrName2) \
-	ATTR11Link(AttrName2, TypeName2, TypeName1, AttrName1) 
+#define OT_REL11_READ(AttrName, TypeName, TypeNameOther, ListName, A_Or_B) \
+	inline ot_types::TypeNameOther* AttrName(ot_types::TypeName* ptr) { \
+		auto& set = ListName(); \
+        return set.get ##A_Or_B(ptr); \
+	} \
+	inline TypeNameOther AttrName(const TypeName& object) { \
+		return AttrName(object.get()); \
+	} 
 
-#define REL1N(AttrName1, TypeName1, TypeName2, AttrName2) \
-	/* Prototypes */ \
-	TypeName1 AttrName2(TypeName2); \
-	void AttrName2(TypeName2, TypeName1); \
-	void AttrName2(TypeName2, ot::AttributeDeleter); \
-	ATTRN1Link(AttrName1, TypeName1, TypeName2, AttrName2) \
-	ATTR1NLink(AttrName2, TypeName2, TypeName1, AttrName1) 
+#define OT_REL11_WRITE(AttrName, TypeName, TypeNameOther, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot_types::TypeNameOther* value) { \
+		auto& set = ListName(); \
+        set.set ##A_Or_B(ptr, value); \
+	} \
+	inline void AttrName(TypeName& object, TypeNameOther value) { \
+		AttrName(object.get(), value.get()); \
+	} \
 
-#define RELN1(AttrName1, TypeName1, TypeName2, AttrName2) \
-	REL1N(AttrName2, TypeName2, TypeName1, AttrName1)
+#define OT_REL11_REMOVE(AttrName, TypeName, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
+		auto& set = ListName(); \
+		set.remove ##A_Or_B(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault) { \
+		AttrName(object.get(), ot::DeleteDefault{}); \
+	} \
 
-#define RELNN(AttrName1, TypeName1, TypeName2, AttrName2) \
-	/* Prototypes */ \
-	TypeName1 AttrName2(TypeName2); \
-	void AttrName2(TypeName2, TypeName1); \
-	void AttrName2(TypeName2, size_t, TypeName1); \
-	void AttrName2(TypeName2, std::function<std::pair<bool, bool> (TypeName1, size_t)>); \
-	ATTRNNLink(AttrName1, TypeName1, TypeName2, AttrName2) \
-	ATTRNNLink(AttrName2, TypeName2, TypeName1, AttrName1)
+#define OT_REL11_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, ListName) \
+	inline ot::LinkedAttributes11<ot_types::TypeName1, ot_types::TypeName2>& ListName() { \
+		static ot::LinkedAttributes11<ot_types::TypeName1, ot_types::TypeName2> set; \
+		return set; \
+	} \
+	/* Read */ \
+	OT_REL11_READ(AttrName1, TypeName1, TypeName2, ListName, A) \
+	OT_REL11_READ(AttrName2, TypeName2, TypeName1, ListName, B) \
+	/* Write */ \
+	OT_REL11_WRITE(AttrName1, TypeName1, TypeName2, ListName, A) \
+	OT_REL11_WRITE(AttrName2, TypeName2, TypeName1, ListName, B) \
+	/* Remove */ \
+	OT_REL11_REMOVE(AttrName1, TypeName1, ListName, A) \
+	OT_REL11_REMOVE(AttrName2, TypeName2, ListName, B) \
 
-#define REL1(AttrName, TypeName) \
-	/* Prototypes */ \
-	void AttrName(TypeName, ot::AttributeDeleter); \
-	ATTR11Link(AttrName, TypeName, TypeName, AttrName)
+#define OT_REL11(AttrName1, TypeName1, TypeName2, AttrName2) \
+	OT_REL11_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, AttrName1 ##_ ##TypeName1 ##_ ##TypeName2 ##_ ##AttrName2)
 
-#define RELN(AttrName, TypeName) \
-	ATTRNNLink(AttrName, TypeName, TypeName, AttrName)
+#define OT_REL1N_REMOVE(AttrName, TypeName, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
+		auto& list = ListName(); \
+		list.remove ##A_Or_B(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault) { \
+		AttrName(object.get(), {}); \
+	} \
 
-// *** Helpers ***
+#define OT_REL1N_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, ListName) \
+	inline ot::LinkedAttributes1N<ot_types::TypeName1, ot_types::TypeName2>& ListName() { \
+		static ot::LinkedAttributes1N<ot_types::TypeName1, ot_types::TypeName2> list; \
+		return list; \
+	} \
+	/* Read */ \
+	inline ot::vector<ot_types::TypeName2*> AttrName1(ot_types::TypeName1* ptr) { \
+		auto& list = ListName(); \
+		return list.getList(ptr); \
+	} \
+	inline ot::vector<TypeName2> AttrName1(const TypeName1& object) { \
+		ot::vector<TypeName2> vec; \
+		auto ptrVec = AttrName1(object.get()); \
+		for(auto ptr : ptrVec) { vec.push_back(TypeName2(ptr)); } \
+		return vec; \
+	} \
+	inline ot_types::TypeName1* AttrName2(ot_types::TypeName2* ptr) { \
+		auto& list = ListName(); \
+        return list.getSingle(ptr); \
+	} \
+	inline TypeName1 AttrName2(const TypeName2& object) { \
+		return AttrName2(object.get()); \
+	} \
+	/* Write */ \
+	inline void AttrName1(ot_types::TypeName1* ptr, ot_types::TypeName2* value) { \
+		auto& list = ListName(); \
+		list.setInList(ptr, value); \
+		ptr->removers[#AttrName2] = [](ot::Type* t) { \
+			auto& list = ListName(); \
+			list.removeA(static_cast<ot_types::TypeName1*>(t)); \
+		}; \
+		value->removers[#AttrName1] = [](ot::Type* t) { \
+			auto& list = ListName(); \
+			list.removeB(static_cast<ot_types::TypeName2*>(t)); \
+		}; \
+	} \
+	inline void AttrName1(TypeName1& object, TypeName2 value) { \
+		AttrName1(object.get(), value.get()); \
+	} \
+	inline void AttrName2(ot_types::TypeName2* ptr, ot_types::TypeName1* value) { \
+		auto& list = ListName(); \
+		list.setSingle(ptr, value); \
+		ptr->removers[#AttrName1] = [](ot::Type* t) { \
+			auto& list = ListName(); \
+			list.removeB(static_cast<ot_types::TypeName2*>(t)); \
+		}; \
+		value->removers[#AttrName2] = [](ot::Type* t) { \
+			auto& list = ListName(); \
+			list.removeA(static_cast<ot_types::TypeName1*>(t)); \
+		}; \
+	} \
+	inline void AttrName2(TypeName2& object, TypeName1 value) { \
+		AttrName2(object.get(), value.get()); \
+	} \
+	/* Remove */ \
+	OT_REL1N_REMOVE(AttrName1, TypeName1, ListName, A) \
+	OT_REL1N_REMOVE(AttrName2, TypeName2, ListName, B) \
 
-#define REMOVE_VALUE(AttrName, TypeName, AttrType, Value) \
-    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t) { return std::pair<bool, bool>{ value == Value, false }; } }
+#define OT_REL1N(AttrName1, TypeName1, TypeName2, AttrName2) \
+	OT_REL1N_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, AttrName1 ##_ ##TypeName1 ##_ ##TypeName2 ##_ ##AttrName2)
 
-#define REMOVE_VALUE_ALL(AttrName, TypeName, AttrType, Value) \
-    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType value, size_t) { return std::pair<bool, bool>{ value == Value, true }; } }
+#define OT_RELN1(AttrName1, TypeName1, TypeName2, AttrName2) \
+	OT_REL1N_IMPL(AttrName2, TypeName2, TypeName1, AttrName1, AttrName2 ##_ ##TypeName2 ##_ ##TypeName1 ##_ ##AttrName1)
 
-#define REMOVE_ALL(AttrName, TypeName, AttrType) \
-    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType, size_t) { return std::pair<bool, bool>{ true, true }; } }
+#define OT_RELNN_READ(AttrName, TypeName, TypeNameOther, ListName, A_Or_B) \
+	inline ot::vector<ot_types::TypeNameOther*> AttrName(ot_types::TypeName* ptr) { \
+		auto& list = ListName(); \
+        return list.getList ##A_Or_B(ptr); \
+	} \
+	inline ot::vector<TypeNameOther> AttrName(const TypeName& object) { \
+		ot::vector<TypeNameOther> vec; \
+		auto ptrVec = AttrName(object.get()); \
+		for(auto ptr : ptrVec) { vec.push_back(TypeNameOther(ptr)); } \
+		return vec; \
+	} 
 
-#define REMOVE_INDEX(AttrName, TypeName, AttrType, Index) \
-    ot::ItemDeleter<TypeName, AttrType> { AttrName, [](AttrType, size_t index) { return std::pair<bool, bool>{ index == Index, false }; } }
+#define OT_RELNN_WRITE(AttrName, TypeName, TypeNameOther, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot_types::TypeNameOther* value) { \
+		auto& list = ListName(); \
+        list.setInList ##A_Or_B(ptr, value); \
+	} \
+	inline void AttrName(TypeName& object, TypeNameOther value) { \
+		AttrName(object.get(), value.get()); \
+	} \
+
+#define OT_RELNN_REMOVE(AttrName, TypeName, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
+		auto& list = ListName(); \
+		list.remove ##A_Or_B(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault) { \
+		AttrName(object.get(), ot::DeleteDefault{}); \
+	} \
+
+#define OT_RELNN_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, ListName) \
+	inline ot::LinkedAttributesNN<ot_types::TypeName1, ot_types::TypeName2>& ListName() { \
+		static ot::LinkedAttributesNN<ot_types::TypeName1, ot_types::TypeName2> set; \
+		return set; \
+	} \
+	/* Read */ \
+	OT_RELNN_READ(AttrName1, TypeName1, TypeName2, ListName, A) \
+	OT_RELNN_READ(AttrName2, TypeName2, TypeName1, ListName, B) \
+	/* Write */ \
+	OT_RELNN_WRITE(AttrName1, TypeName1, TypeName2, ListName, A) \
+	OT_RELNN_WRITE(AttrName2, TypeName2, TypeName1, ListName, B) \
+	/* Remove */ \
+	OT_RELNN_REMOVE(AttrName1, TypeName1, ListName, A) \
+	OT_RELNN_REMOVE(AttrName2, TypeName2, ListName, B) \
+
+#define OT_RELNN(AttrName1, TypeName1, TypeName2, AttrName2) \
+	OT_RELNN_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, AttrName1 ##_ ##TypeName1 ##_ ##TypeName2 ##_ ##AttrName2)
 
 #endif // OPEN_TYPES_HPP

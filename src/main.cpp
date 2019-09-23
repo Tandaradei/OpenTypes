@@ -1,12 +1,9 @@
 #include <iostream>
 
-//#include "src/Types/Person.extended.hpp"
+#include "src/Types/Person.hpp"
 #include "src/Types/List.hpp"
 
-#include "src/Types/Person2.hpp"
-
-//#include "Helper.hpp"
-#include "Helper2.hpp"
+#include "Helper.hpp"
 
 int main() {
 	Person hans = Person::create(); // Create Person object
@@ -14,7 +11,7 @@ int main() {
 	std::cout << "name of hans: " << hans[name] << std::endl; // Read empty attribute name of hans
 	std::cout << "age of hans: " << age(hans) << std::endl; // Read empty attribute age of hans
 	hans(name, std::string("Hans"))(age, 37);  // Set attributes name and age of hans
-	std::cout << "name of hans: " << name(hans) << std::endl; // Read set attribute name of hans
+	std::cout << "name of hans: "; hans[printName]; // Read set attribute name of hans
 	std::cout << "age of hans: " << hans[age] << std::endl; // Read set attribute age of hans
 	auto printChildAges = [](Person p) {
 		bool first = true;
@@ -47,8 +44,12 @@ int main() {
 		std::cout << "owner of BMW: " << name(owner(myCar)) << std::endl;
 		std::cout << "owner of Audi: " << name(owner(myCar2)) << std::endl;
 	}
-	std::cout << "first car of Hans: " << hans[cars][0][name] << std::endl;
-	std::cout << "second car of Hans: " << hans[cars][1][name] << std::endl;
+	ot::vector<Car> hansCars = hans[cars];
+	std::cout << "# cars of Hans: " << hansCars.size() << std::endl;
+	Car first = hansCars[0];
+	std::cout << "first car of Hans: " << first[name] << std::endl;
+	Car second = hans[cars][1];
+	std::cout << "second car of Hans: " << second[name] << std::endl;
 	std::cout << "owner of BMW: " << name(owner(myCar)) << std::endl;
     List<int> list = List<int>(head, 3)(tail, List<int>(head, 2)(tail, List<int>(head, 8)));
     list[head<int>];
