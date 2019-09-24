@@ -167,11 +167,52 @@ namespace ot {
 		}
 	};
 
+	template <typename T>
+	class LinkedAttributes11Mirrored {
+	private:
+		std::unordered_map<T*, T*> connections;
+
+	public:
+		T* get(T* t) {
+			if (!t) { return nullptr; }
+			auto it = connections.find(t);
+			if (it != connections.end()) { return it->second; };
+			return nullptr;
+		}
+
+		void set(T* a, T* b) {
+			if (!a || !b) { return; }
+			if (connections[a] == b) { return; }
+			// if a has a connection, remove the connection from the connected b
+			auto it_a = connections.find(a);
+			if (it_a != connections.end()) { 
+				connections.erase(it_a->second); 
+			};
+			// set new b
+			connections[a] = b;
+			// if b has a connection, remove the connection from the connected a
+			auto it_b = connections.find(b);
+			if (it_b != connections.end()) { 
+				connections.erase(it_b->second); 
+			};
+			connections[b] = a;
+		}
+
+		void remove(T* t) {
+			if (!t) { return; }
+			auto it = connections.find(t);
+			if (it != connections.end()) { connections.erase(it->second); };
+			connections.erase(t);
+		}
+	};
+
 	template <typename A, typename B>
-	struct LinkedAttributes11 {
+	class LinkedAttributes11 {
+	private:
 		std::unordered_map<A*, B*> a_to_b;
 		std::unordered_map<B*, A*> b_to_a;
 
+	public:
 		B* getA(A* a) {
 			if (!a) { return nullptr; }
 			auto it = a_to_b.find(a);
@@ -220,10 +261,12 @@ namespace ot {
 	};
 
 	template <typename A, typename B>
-	struct LinkedAttributes1N {
+	class LinkedAttributes1N {
+	private:
 		std::unordered_map<A*, ot::vector<B*>> a_to_b;
 		std::unordered_map<B*, A*> b_to_a;
 
+	public:
 		ot::vector<B*> getList(A* a) {
 			if (!a) { return ot::vector<B*>(); }
 			auto it = a_to_b.find(a);
@@ -288,10 +331,12 @@ namespace ot {
 	};
 
 	template <typename A, typename B>
-	struct LinkedAttributesNN {
+	class LinkedAttributesNN {
+	private:
 		std::unordered_map<A*, ot::vector<B*>> a_to_b;
 		std::unordered_map<B*, ot::vector<A*>> b_to_a;
 
+	public:
 		ot::vector<B*> getListA(A* a) {
 			if (!a) { return ot::vector<B*>(); }
 			auto it = a_to_b.find(a);
@@ -1006,5 +1051,47 @@ namespace ot {
 
 #define OT_RELNN(AttrName1, TypeName1, TypeName2, AttrName2) \
 	OT_RELNN_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, AttrName1 ##_ ##TypeName1 ##_ ##TypeName2 ##_ ##AttrName2)
+
+#define OT_REL1_READ(AttrName, TypeName, ListName, A_Or_B) \
+	inline ot_types::TypeName* AttrName(ot_types::TypeName* ptr) { \
+		auto& set = ListName(); \
+        return set.get(ptr); \
+	} \
+	inline TypeName AttrName(const TypeName& object) { \
+		return AttrName(object.get()); \
+	} 
+
+#define OT_REL1_WRITE(AttrName, TypeName, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot_types::TypeName* value) { \
+		auto& set = ListName(); \
+        set.set(ptr, value); \
+	} \
+	inline void AttrName(TypeName& object, TypeName value) { \
+		AttrName(object.get(), value.get()); \
+	} \
+
+#define OT_REL1_REMOVE(AttrName, TypeName, ListName) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
+		auto& set = ListName(); \
+		set.remove(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault) { \
+		AttrName(object.get(), ot::DeleteDefault{}); \
+	} \
+
+#define OT_REL1_IMPL(AttrName, TypeName, ListName) \
+	inline ot::LinkedAttributes11Mirrored<ot_types::TypeName>& ListName() { \
+		static ot::LinkedAttributes11Mirrored<ot_types::TypeName> set; \
+		return set; \
+	} \
+	/* Read */ \
+	OT_REL1_READ(AttrName, TypeName, ListName) \
+	/* Write */ \
+	OT_REL1_WRITE(AttrName, TypeName, ListName) \
+	/* Remove */ \
+	OT_REL1_REMOVE(AttrName, TypeName, ListName) \
+
+#define OT_REL1(AttrName, TypeName) \
+	OT_REL1_IMPL(AttrName, TypeName, AttrName ##_ ##TypeName ##_ ##TypeName ##_ ##AttrName)
 
 #endif // OPEN_TYPES_HPP

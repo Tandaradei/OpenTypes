@@ -7,6 +7,7 @@
 
 int main() {
 	Person hans = Person::create(); // Create Person object
+	
 	Person hans_ref = hans; // Create Person variable referencing hans
 	std::cout << "name of hans: " << hans[name] << std::endl; // Read empty attribute name of hans
 	std::cout << "age of hans: " << age(hans) << std::endl; // Read empty attribute age of hans
@@ -51,6 +52,16 @@ int main() {
 	Car second = hans[cars][1];
 	std::cout << "second car of Hans: " << second[name] << std::endl;
 	std::cout << "owner of BMW: " << name(owner(myCar)) << std::endl;
+
+	Person anna(name, std::string("Anna"));
+	hans(spouse, anna);
+	std::cout << "spouse of " << hans[name] << ": " << hans[spouse][name] << "\n";
+	std::cout << "spouse of " << anna[name] << ": " << anna[spouse][name] << "\n";
+	anna -= spouse;
+	std::cout << "spouse of " << hans[name] << ": " << hans[spouse][name] << "\n";
+	std::cout << "spouse of " << anna[name] << ": " << anna[spouse][name] << "\n";
+
+
     List<int> list = List<int>(head, 3)(tail, List<int>(head, 2)(tail, List<int>(head, 8)));
     list[head<int>];
     head(list);
