@@ -27,14 +27,12 @@ namespace ot {
 	};
 
 	struct Type {
-
 	public:
 		using Remover = std::function<void(Type*)>;
 
 	public:
-
-		void clear() {
-			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Called clear for %p\n", this);
+		~Type() {
+			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Called ~Type for %p\n", this);
 			for (auto& remover : removers) {
 				remover.second(this);
 			}
@@ -53,16 +51,16 @@ namespace ot {
 		PtrManager(PtrManager const&) = delete;
 		void operator=(PtrManager const&) = delete;
 
-		void inc(Type* t) {
-			ptrs[t]++;
+		size_t inc(Type* t) {
+			return ++ptrs[t];
 		}
-		bool dec(Type* t) {
-			if (--ptrs[t] == 0) {
-				t->clear();
+
+		size_t dec(Type* t) {
+			size_t count = --ptrs[t];
+			if (count == 0) {
 				ptrs.erase(t);
-				return true;
 			}
-			return false;
+			return count;
 		}
 
 	private:
@@ -142,7 +140,7 @@ namespace ot {
 		void decAndDelete() {
 			if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Called decAndDelete for %p\n", myPtr);
 			if (myPtr) {
-				if (PtrManager::getInstance().dec(myPtr)) {
+				if (PtrManager::getInstance().dec(myPtr) == 0) {
 					if (ot::SHOULD_PRINT_DEBUG) printf("DEBUG: Delete %p\n", myPtr);
 					delete myPtr;
 					myPtr = nullptr;
