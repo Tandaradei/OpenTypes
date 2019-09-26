@@ -40,18 +40,24 @@ int main() {
 	{
 		Car myCar2(name, std::string("Audi"));
 		hans(cars, myCar2);
+		Car myCar3(name, std::string("VW"));
+		hans(cars, myCar3);
 		std::cout << "first car of Hans: " << hans[cars][0][name] << std::endl;
 		std::cout << "second car of Hans: " << hans[cars][1][name] << std::endl;
+		std::cout << "third car of Hans: " << hans[cars][2][name] << std::endl;
 		std::cout << "owner of BMW: " << name(owner(myCar)) << std::endl;
 		std::cout << "owner of Audi: " << name(owner(myCar2)) << std::endl;
+		std::cout << "owner of VW: " << name(owner(myCar3)) << std::endl;
+		hans.deleteByValue(cars, ot::DeleteByValue<Car>(myCar2)); // delete myCar2 from cars list
+		std::cout << "second car of Hans: " << hans[cars][1][name] << std::endl; // should be myCar2 now -> 'VW'
 	}
+	// myCar3 / 'VW' should be out of scope and therefore auto deleted from cars list
 	ot::vector<Car> hansCars = hans[cars];
 	std::cout << "# cars of Hans: " << hansCars.size() << std::endl;
 	Car first = hansCars[0];
 	std::cout << "first car of Hans: " << first[name] << std::endl;
-	Car second = hans[cars][1];
-	std::cout << "second car of Hans: " << second[name] << std::endl;
-	std::cout << "owner of BMW: " << name(owner(myCar)) << std::endl;
+	Car second = hans[cars][1]; // should be a nil reference
+	std::cout << "second car of Hans: " << second[name] << std::endl; 
 
 	Person anna(name, std::string("Anna"));
 	hans(spouse, anna);
@@ -61,6 +67,17 @@ int main() {
 	std::cout << "spouse of " << hans[name] << ": " << hans[spouse][name] << "\n";
 	std::cout << "spouse of " << anna[name] << ": " << anna[spouse][name] << "\n";
 
+	Person peter(name, std::string("Peter"));
+	anna(friends, hans);
+	anna(friends, peter);
+	hans[printFriends];
+	anna[printFriends];
+	peter[printFriends];
+
+	anna.deleteByValue(friends, ot::DeleteByValue<Person>(peter));
+	hans[printFriends];
+	anna[printFriends];
+	peter[printFriends];
 
     List<int> list = List<int>(head, 3)(tail, List<int>(head, 2)(tail, List<int>(head, 8)));
     list[head<int>];

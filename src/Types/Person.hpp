@@ -22,6 +22,13 @@ OT_ATTR1(age, Person, int)
 OT_ATTRN(grades, Person, Grade);
 OT_RELNN(teachers, Person, Person, students);
 OT_REL1(spouse, Person);
+OT_RELN(friends, Person);
+void printFriends(const Person& p) {
+	std::cout << "friends of " << p[name] << ": \n";
+	for (auto f : p[friends]) {
+		std::cout << " " << f[name] << "\n";
+	}
+}
 
 OT_TYPE(Car)
 OT_ATTR1(name, Car, std::string)

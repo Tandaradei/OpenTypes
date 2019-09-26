@@ -1,7 +1,6 @@
 #ifndef OPEN_TYPES_HPP
 #define OPEN_TYPES_HPP
 
-
 #include <algorithm>
 #include <functional>
 #include <iostream>
@@ -206,6 +205,74 @@ namespace ot {
 		}
 	};
 
+	template <typename T>
+	class LinkedAttributesNNMirrored
+	{
+	private:
+		std::unordered_map<T*, ot::vector<T*>> connections;
+
+	public:
+		ot::vector<T*> getList(T* t) {
+			if (!t) { return ot::vector<T*>(); }
+			auto it = connections.find(t);
+			if (it != connections.end()) { return it->second; };
+			return ot::vector<T*>();
+		}
+
+		void setInList(T* a, T* b) {
+			if (!a || !b) { return; }
+
+			if (connections.find(a) == connections.end()) {
+				connections[a] = ot::vector<T*>();
+			};
+			auto& vec_a = connections[a];
+			auto it_b_in_a = std::find(vec_a.begin(), vec_a.end(), b);
+			if (it_b_in_a == vec_a.end()) {
+				vec_a.push_back(b);
+			}
+
+			if (connections.find(b) == connections.end()) {
+				connections[b] = ot::vector<T*>();
+			};
+			auto& vec_b = connections[b];
+			auto it_a_in_b = std::find(vec_b.begin(), vec_b.end(), a);
+			if (it_a_in_b == vec_b.end()) {
+				vec_b.push_back(a);
+			}
+		}
+
+		void removeByValue(T* a, T* b) {
+			if (!a || !b) { return; }
+			auto removeByValueInt = [&](T* t1, T* t2) {
+				auto it = connections.find(t1);
+				if (it != connections.end()) {
+					auto& vec = it->second;
+					vec.erase(std::remove(vec.begin(), vec.end(), t2));
+					if (vec.size() == 0) {
+						connections.erase(t1);
+					}
+				}
+			};
+			removeByValueInt(a, b);
+			removeByValueInt(b, a);
+		}
+
+		void remove(T* t) {
+			if (!t) { return; }
+			auto it = connections.find(t);
+			if (it != connections.end()) { 
+				for (auto b : it->second) {
+					auto& vec = connections[b];
+					vec.erase(std::remove(vec.begin(), vec.end(), t));
+					if (vec.size() == 0) {
+						connections.erase(b);
+					}
+				}
+				connections.erase(t);
+			};
+		}
+	};
+
 	template <typename A, typename B>
 	class LinkedAttributes11 {
 	private:
@@ -316,6 +383,26 @@ namespace ot {
 			}
 		}
 
+		void removeFromAByValue(A* a, B* b) {
+			if (!a || !b) { return; }
+			auto it_a = a_to_b.find(a);
+			if (it_a != a_to_b.end()) {
+				auto& vec = it_a->second;
+				for (auto it = vec.begin(); it != vec.end();) {
+					if (b == *it) {
+						it = vec.erase(it);
+						b_to_a.erase(b);
+					}
+					else {
+						it++;
+					}
+				}
+				if (vec.size() == 0) {
+					a_to_b.erase(a);
+				}
+			}
+		}
+
 		void removeB(B* b) {
 			if (!b) { return; }
 			auto it_b = b_to_a.find(b);
@@ -367,6 +454,60 @@ namespace ot {
 
 		void setInListB(B* b, A* a) {
 			setInListA(a, b);
+		}
+
+		void removeFromAByValue(A* a, B* b) {
+			if (!a || !b) { return; }
+			auto it_a = a_to_b.find(a);
+			if (it_a != a_to_b.end()) {
+				auto& vec = it_a->second;
+				for (auto it = vec.begin(); it != vec.end();) {
+					if (b == *it) {
+						it = vec.erase(it);
+						auto it_b = b_to_a.find(b);
+						if (it_b != b_to_a.end()) {
+							auto& vec_b = it_b->second;
+							vec_b.erase(std::remove(vec_b.begin(), vec_b.end(), a));
+							if (vec_b.size() == 0) {
+								b_to_a.erase(b);
+							}
+						}
+					}
+					else {
+						it++;
+					}
+				}
+				if (vec.size() == 0) {
+					a_to_b.erase(a);
+				}
+			}
+		}
+
+		void removeFromBByValue(B* a, A* b) {
+			if (!a || !b) { return; }
+			auto it_b = b_to_a.find(b);
+			if (it_b != b_to_a.end()) {
+				auto& vec = it_b->second;
+				for (auto it = vec.begin(); it != vec.end();) {
+					if (a == *it) {
+						it = vec.erase(it);
+						auto it_a = a_to_b.find(a);
+						if (it_a != a_to_b.end()) {
+							auto& vec_a = it_a->second;
+							vec_a.erase(std::remove(vec_a.begin(), vec_a.end(), b));
+							if (vec_a.size() == 0) {
+								a_to_b.erase(b);
+							}
+						}
+					}
+					else {
+						it++;
+					}
+				}
+				if (vec.size() == 0) {
+					b_to_a.erase(b);
+				}
+			}
 		}
 
 		void removeA(A* a) {
@@ -994,6 +1135,14 @@ namespace ot {
 	inline void AttrName2(TypeName2& object, TypeName1 value) { \
 		AttrName2(object.get(), value.get()); \
 	} \
+	/* Remove item by value */ \
+	inline void AttrName1(ot_types::TypeName1* ptr, ot::DeleteByValue<ot_types::TypeName2*> deleter) { \
+		auto& list = ListName(); \
+        list.removeFromAByValue(ptr, deleter.value); \
+	} \
+	inline void AttrName1(TypeName1& object, ot::DeleteByValue<TypeName2> deleter) { \
+		AttrName1(object.get(), ot::DeleteByValue<ot_types::TypeName2*>(deleter.value.get())); \
+	} \
 	/* Remove */ \
 	OT_REL1N_REMOVE(AttrName1, TypeName1, ListName, A) \
 	OT_REL1N_REMOVE(AttrName2, TypeName2, ListName, B) \
@@ -1025,6 +1174,15 @@ namespace ot {
 		AttrName(object.get(), value.get()); \
 	} \
 
+#define OT_RELNN_REMOVE_VALUE(AttrName, TypeName, TypeNameOther, ListName, A_Or_B) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteByValue<ot_types::TypeNameOther*> deleter) { \
+			auto& list = ListName(); \
+			list.removeFrom ##A_Or_B ##ByValue(ptr, deleter.value); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteByValue<TypeNameOther> deleter) { \
+			AttrName(object.get(), ot::DeleteByValue<ot_types::TypeNameOther*>(deleter.value.get())); \
+	} \
+
 #define OT_RELNN_REMOVE(AttrName, TypeName, ListName, A_Or_B) \
 	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
 		auto& list = ListName(); \
@@ -1045,6 +1203,9 @@ namespace ot {
 	/* Write */ \
 	OT_RELNN_WRITE(AttrName1, TypeName1, TypeName2, ListName, A) \
 	OT_RELNN_WRITE(AttrName2, TypeName2, TypeName1, ListName, B) \
+	/* Remove item by value */ \
+	OT_RELNN_REMOVE_VALUE(AttrName1, TypeName1, TypeName2, ListName, A) \
+	OT_RELNN_REMOVE_VALUE(AttrName2, TypeName2, TypeName1, ListName, B) \
 	/* Remove */ \
 	OT_RELNN_REMOVE(AttrName1, TypeName1, ListName, A) \
 	OT_RELNN_REMOVE(AttrName2, TypeName2, ListName, B) \
@@ -1052,7 +1213,7 @@ namespace ot {
 #define OT_RELNN(AttrName1, TypeName1, TypeName2, AttrName2) \
 	OT_RELNN_IMPL(AttrName1, TypeName1, TypeName2, AttrName2, AttrName1 ##_ ##TypeName1 ##_ ##TypeName2 ##_ ##AttrName2)
 
-#define OT_REL1_READ(AttrName, TypeName, ListName, A_Or_B) \
+#define OT_REL1_READ(AttrName, TypeName, ListName) \
 	inline ot_types::TypeName* AttrName(ot_types::TypeName* ptr) { \
 		auto& set = ListName(); \
         return set.get(ptr); \
@@ -1061,7 +1222,7 @@ namespace ot {
 		return AttrName(object.get()); \
 	} 
 
-#define OT_REL1_WRITE(AttrName, TypeName, ListName, A_Or_B) \
+#define OT_REL1_WRITE(AttrName, TypeName, ListName) \
 	inline void AttrName(ot_types::TypeName* ptr, ot_types::TypeName* value) { \
 		auto& set = ListName(); \
         set.set(ptr, value); \
@@ -1093,5 +1254,61 @@ namespace ot {
 
 #define OT_REL1(AttrName, TypeName) \
 	OT_REL1_IMPL(AttrName, TypeName, AttrName ##_ ##TypeName ##_ ##TypeName ##_ ##AttrName)
+
+#define OT_RELN_READ(AttrName, TypeName, ListName) \
+	inline ot::vector<ot_types::TypeName*> AttrName(ot_types::TypeName* ptr) { \
+		auto& list = ListName(); \
+        return list.getList(ptr); \
+	} \
+	inline ot::vector<TypeName> AttrName(const TypeName& object) { \
+		ot::vector<TypeName> vec; \
+		auto ptrVec = AttrName(object.get()); \
+		for(auto ptr : ptrVec) { vec.push_back(TypeName(ptr)); } \
+		return vec; \
+	} 
+
+#define OT_RELN_WRITE(AttrName, TypeName, ListName) \
+	inline void AttrName(ot_types::TypeName* ptr, ot_types::TypeName* value) { \
+		auto& list = ListName(); \
+        list.setInList(ptr, value); \
+	} \
+	inline void AttrName(TypeName& object, TypeName value) { \
+		AttrName(object.get(), value.get()); \
+	} \
+
+#define OT_RELN_REMOVE_VALUE(AttrName, TypeName, ListName) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteByValue<ot_types::TypeName*> deleter) { \
+		auto& list = ListName(); \
+		list.removeByValue(ptr, deleter.value); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteByValue<TypeName> deleter) { \
+		AttrName(object.get(), ot::DeleteByValue<ot_types::TypeName*>(deleter.value.get())); \
+	} \
+
+#define OT_RELN_REMOVE(AttrName, TypeName, ListName) \
+	inline void AttrName(ot_types::TypeName* ptr, ot::DeleteDefault) { \
+		auto& list = ListName(); \
+		list.remove(ptr); \
+	} \
+	inline void AttrName(TypeName& object, ot::DeleteDefault) { \
+		AttrName(object.get(), ot::DeleteDefault{}); \
+	} \
+
+#define OT_RELN_IMPL(AttrName, TypeName, ListName) \
+	inline ot::LinkedAttributesNNMirrored<ot_types::TypeName>& ListName() { \
+		static ot::LinkedAttributesNNMirrored<ot_types::TypeName> list; \
+		return list; \
+	} \
+	/* Read */ \
+	OT_RELN_READ(AttrName, TypeName, ListName) \
+	/* Write */ \
+	OT_RELN_WRITE(AttrName, TypeName, ListName) \
+	/* Remove item by value */ \
+	OT_RELN_REMOVE_VALUE(AttrName, TypeName, ListName) \
+	/* Remove */ \
+	OT_RELN_REMOVE(AttrName, TypeName, ListName) \
+
+#define OT_RELN(AttrName, TypeName) \
+	OT_RELN_IMPL(AttrName, TypeName, AttrName ##_ ##TypeName ##_ ##TypeName ##_ ##AttrName)
 
 #endif // OPEN_TYPES_HPP

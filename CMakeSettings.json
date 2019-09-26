@@ -18,7 +18,12 @@
         },
         {
           "name": "CMAKE_LINKER",
-          "value": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.22.27905/bin/Hostx64/x64/link.exe",
+          "value": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.23.28105/bin/HostX64/x64/link.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_MAKE_PROGRAM",
+          "value": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe",
           "type": "FILEPATH"
         }
       ],
@@ -91,7 +96,8 @@
           "value": "C:/Program Files/LLVM/bin/lld-link.exe",
           "type": "FILEPATH"
         }
-      ]
+      ],
+      "intelliSenseMode": "windows-msvc-x64"
     }
   ]
 }
