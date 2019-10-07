@@ -8,12 +8,15 @@
 #include <unordered_map>
 #include <vector>
 
+#include <cereal/types/vector.hpp>
+
 
 namespace ot {
     static const bool SHOULD_PRINT_DEBUG = false;
 	/// Dummy class to differentiate between function declarations
-	struct DeleteDefault {
-	};
+	struct DeleteDefault {};
+
+	struct GetReferenceDummy {};
 
 	template <typename T>
 	struct DeleteByValue {
@@ -538,6 +541,13 @@ namespace ot {
 			}
 		}
 	};
+
+	static uint32_t typeID = 0;
+	template <typename Archive>
+	static std::unordered_map<uint32_t, std::unordered_map<std::string, std::function<void(Type*, Archive&)>>>& getSerializerSaverMap() {
+		static std::unordered_map<uint32_t, std::unordered_map<std::string, std::function<void(Type*, Archive&)>>> map;
+		return map;
+	}
 }
 
 #define OT_TYPE(TypeName) \
@@ -563,7 +573,7 @@ namespace ot {
 			} \
 			/* Remove attribute value / entire list */ \
 			void operator-=(void (*remove)(TypeName*, ot::DeleteDefault)) { \
-				remove(this, {}); \
+				remove(this, ot::DeleteDefault{}); \
 			} \
 			/*  Remove all elements with value from attribute list */ \
 			template <typename AttrType> \
@@ -574,6 +584,11 @@ namespace ot {
 			template <typename AttrType> \
 			void deleteByIndex(void (*removeFromList)(TypeName*, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
 				removeFromList(this, deleter); \
+			} \
+			/* Return value (if not present, create default value and insert) as reference */ \
+			template <typename AttrType> \
+			AttrType& createReference(AttrType& (*createRef)(TypeName*, ot::GetReferenceDummy)) { \
+				return createRef(this, ot::GetReferenceDummy{}); \
 			} \
 		}; \
 	} \
@@ -609,7 +624,7 @@ namespace ot {
 		} \
 		/* Remove attribute value / entire list */ \
 		void operator-=(void (*remove)(TypeName&, ot::DeleteDefault)) { \
-			remove(*this, {}); \
+			remove(*this, ot::DeleteDefault{}); \
 		} \
 		/*  Remove all elements with value from attribute list */ \
 		template <typename AttrType> \
@@ -621,7 +636,29 @@ namespace ot {
 		void deleteByIndex(void (*removeFromList)(TypeName&, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
 			removeFromList(*this, deleter); \
 		} \
+		/* Return value (if not present, create default value and insert) as reference */ \
+		template <typename AttrType> \
+		AttrType& createReference(AttrType& (*createRef)(TypeName&, ot::GetReferenceDummy)) { \
+			return createRef(*this, ot::GetReferenceDummy{}); \
+		} \
 	}; \
+
+
+#define OT_TYPE_SERIALIZE(TypeName, Saving, Loading) \
+namespace ot_cereal { \
+	struct TypeName ##Save { \
+		TypeName ##Save(TypeName obj):t(obj) {} \
+		template <typename Archive> \
+		void save(Archive& archive) const { if(ot::SHOULD_PRINT_DEBUG) { printf("DEBUG: Save of %s called\n", #TypeName); } archive(Saving); } \
+		TypeName t; \
+	}; \
+	struct TypeName ##Load { \
+		TypeName ##Load(TypeName obj):t(obj) {} \
+		template <typename Archive> \
+		void load(Archive& archive) { if(ot::SHOULD_PRINT_DEBUG) { printf("DEBUG: Load of %s called\n", #TypeName); } archive(Loading); } \
+		TypeName t; \
+	}; \
+}
 
 #define OT_ATTR1(AttrName, TypeName, AttrType) \
 	/* Attribute map */ \
@@ -642,6 +679,22 @@ namespace ot {
     } \
     inline AttrType AttrName(const TypeName& object) { \
        return AttrName(object.get()); \
+	} \
+	/* Create/Get Reference */ \
+	inline AttrType& AttrName(ot_types::TypeName* ptr, ot::GetReferenceDummy) { \
+		auto & attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(ptr); \
+        if (it != attrMap.cend()) { \
+            return it->second; \
+        } \
+        else { \
+			AttrType dummy; \
+            attrMap.emplace(ptr, dummy); \
+			return attrMap[ptr]; \
+        } \
+    } \
+    inline AttrType& AttrName(TypeName& object, ot::GetReferenceDummy) { \
+       return AttrName(object.get(), {}); \
 	} \
 	/* Write */ \
 	inline void AttrName(ot_types::TypeName* ptr, AttrType value) { \
@@ -692,6 +745,22 @@ namespace ot {
     } \
 	inline ot::vector<AttrType> AttrName(const TypeName& object) { \
 		return AttrName(object.get()); \
+	} \
+	/* Create/Get Reference */ \
+	inline ot::vector<AttrType>& AttrName(ot_types::TypeName* ptr, ot::GetReferenceDummy) { \
+		auto & attrMap = TypeName ##_ ##AttrName(); \
+        auto it = attrMap.find(ptr); \
+        if (it != attrMap.cend()) { \
+            return it->second; \
+        } \
+        else { \
+			ot::vector<AttrType> dummy; \
+            attrMap.emplace(ptr, dummy); \
+			return attrMap[ptr]; \
+        } \
+    } \
+    inline ot::vector<AttrType>& AttrName(TypeName& object, ot::GetReferenceDummy) { \
+       return AttrName(object.get(), ot::GetReferenceDummy{}); \
 	} \
 	/* Add item at end */ \
     inline void AttrName(ot_types::TypeName* ptr, AttrType value) { \
@@ -811,6 +880,11 @@ namespace ot {
 			void deleteByIndex(void (*removeFromList)(TypeName*, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
 				removeFromList(this, deleter); \
 			} \
+			/* Return value (if not present, create default value and insert) as reference */ \
+			template <typename AttrType> \
+			AttrType& createReference(AttrType& (*createRef)(TypeName*, ot::GetReferenceDummy)) { \
+				return createRef(this, ot::GetReferenceDummy{}); \
+			} \
 		}; \
 	} \
 	template <TemplateArgs> \
@@ -855,7 +929,30 @@ namespace ot {
 		void deleteByIndex(void (*removeFromList)(TypeName&, ot::DeleteByIndex), ot::DeleteByIndex deleter) { \
 			removeFromList(*this, deleter); \
 		} \
+		/* Return value (if not present, create default value and insert) as reference */ \
+		template <typename AttrType> \
+		AttrType& createReference(AttrType& (*createRef)(TypeName&, ot::GetReferenceDummy)) { \
+			return createRef(*this, ot::GetReferenceDummy{}); \
+		} \
 	};
+
+#define OT_TEMPLATE_TYPE_SERIALIZE(TypeName, TemplateNamedArgs, TemplateArgs, Saving, Loading) \
+namespace ot_cereal { \
+	template <TemplateArgs> \
+	struct TypeName ##Save { \
+		TypeName ##Save(TypeName<TemplateNamedArgs> obj):t(obj) {} \
+		template <typename Archive> \
+		void save(Archive& archive) const { if(ot::SHOULD_PRINT_DEBUG) { printf("DEBUG: Save of %s called\n", #TypeName); } archive(Saving); } \
+		TypeName<TemplateNamedArgs> t; \
+	}; \
+	template <TemplateArgs> \
+	struct TypeName ##Load { \
+		TypeName ##Load(TypeName<TemplateNamedArgs> obj):t(obj) {} \
+		template <typename Archive> \
+		void load(Archive& archive) { if(ot::SHOULD_PRINT_DEBUG) { printf("DEBUG: Load of %s called\n", #TypeName); } archive(Loading); } \
+		TypeName<TemplateNamedArgs> t; \
+	}; \
+}
 
 #define OT_TEMPLATE_ATTR1(AttrName, TypeNameBase, TemplateArgsNames, AttrType, TemplateArgs) \
 	/* Attribute map */ \
@@ -879,6 +976,24 @@ namespace ot {
 	template <TemplateArgs> \
     inline AttrType AttrName(const TypeNameBase<TemplateArgsNames>& object) { \
         return AttrName(object.get()); \
+	} \
+	/* Create/Get Reference */ \
+	template <TemplateArgs> \
+	inline AttrType& AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, ot::GetReferenceDummy) { \
+		auto& attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
+        if (it != attrMap.cend()) { \
+            return it->second; \
+        } \
+        else { \
+			AttrType dummy; \
+            attrMap.emplace(ptr, dummy); \
+			return attrMap[ptr]; \
+        } \
+    } \
+	template <TemplateArgs> \
+    inline AttrType& AttrName(TypeNameBase<TemplateArgsNames>& object, ot::GetReferenceDummy) { \
+       return AttrName(object.get(), ot::GetReferenceDummy{}); \
 	} \
 	/* Write */ \
 	template <TemplateArgs> \
@@ -935,6 +1050,24 @@ namespace ot {
 	template <TemplateArgs> \
     inline ot::vector<AttrType> AttrName(const TypeNameBase<TemplateArgsNames>& object) { \
         return AttrName(object.get()); \
+	} \
+	/* Create/Get Reference */ \
+	template <TemplateArgs> \
+	inline ot::vector<AttrType>& AttrName(ot_types::TypeNameBase<TemplateArgsNames>* ptr, ot::GetReferenceDummy) { \
+		auto & attrMap = TypeNameBase ##_ ##AttrName<TemplateArgsNames>(); \
+        auto it = attrMap.find(ptr); \
+        if (it != attrMap.cend()) { \
+            return it->second; \
+        } \
+        else { \
+			ot::vector<AttrType> dummy; \
+            attrMap.emplace(ptr, dummy); \
+			return attrMap[ptr]; \
+        } \
+    } \
+	template <TemplateArgs> \
+    inline ot::vector<AttrType>& AttrName(TypeNameBase<TemplateArgsNames>& object, ot::GetReferenceDummy) { \
+       return AttrName(object.get(), ot::GetReferenceDummy{}); \
 	} \
 	/* Add item at end */ \
 	template <TemplateArgs> \

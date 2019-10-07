@@ -30,6 +30,13 @@ void printFriends(const Person& p) {
 	}
 }
 
+OT_TYPE_SERIALIZE(
+	Person, 
+	t[name] COMMA t[age] COMMA t[grades],
+	t.createReference(name) COMMA t.createReference(age) COMMA t.createReference(grades)
+);
+
+
 OT_TYPE(Car)
 OT_ATTR1(name, Car, std::string)
 OT_REL1N(cars, Person, Car, owner)

@@ -18,4 +18,19 @@ void printList(List<T> list) {
 	}
 }
 
+void printGrades(Person p) {
+	bool first = true;
+	std::cout << "grades: ";
+	for (const auto& grade : p[grades]) {
+		if (first) {
+			first = false;
+		}
+		else {
+			std::cout << ", ";
+		}
+		std::cout << static_cast<char>(static_cast<int>(grade) + static_cast<int>('A'));
+	}
+	std::cout << "\n";
+}
+
 #endif // HELPER_HPP

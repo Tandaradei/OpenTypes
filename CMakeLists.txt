@@ -9,6 +9,8 @@ INCLUDE_DIRECTORIES("${BASEPATH}")
 
 add_library(Catch INTERFACE)
 target_include_directories(Catch INTERFACE external/catch.hpp)
+add_library(cereal INTERFACE)
+target_include_directories(cereal INTERFACE cereal/)
 
 add_executable(${PROJECT_NAME}_${OUTPUT_NAME}
     src/main.cpp
@@ -20,6 +22,8 @@ add_executable(${PROJECT_NAME}_${OUTPUT_NAME}
     src/Helper.hpp
 )
 
+target_link_libraries(${PROJECT_NAME}_${OUTPUT_NAME} cereal)
+
 add_executable(${PROJECT_NAME}_${OUTPUT_NAME}_tests
     test/Types/Skill.hpp
     test/Types/Person.hpp
@@ -30,7 +34,7 @@ add_executable(${PROJECT_NAME}_${OUTPUT_NAME}_tests
     test/Relations.test.cpp
 )
 
-target_link_libraries(${PROJECT_NAME}_${OUTPUT_NAME}_tests Catch)
+target_link_libraries(${PROJECT_NAME}_${OUTPUT_NAME}_tests cereal Catch)
 
 enable_testing()
 add_test(NAME MyAwesomeTest COMMAND ${PROJECT_NAME}_tests)
