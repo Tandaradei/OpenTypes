@@ -890,6 +890,7 @@ namespace ot_cereal { \
 	template <TemplateArgs> \
 	struct TypeName : public ot::Reference<ot_types::TypeName<TemplateArgsName>> { \
 		static TypeName create() { return ot::Reference<ot_types::TypeName<TemplateArgsName>>::create(); } \
+		static TypeName nil() { return ot::Reference<ot_types::TypeName<TemplateArgsName>>(nullptr); } \
 		TypeName() : ot::Reference<ot_types::TypeName<TemplateArgsName>>() {} \
         TypeName(const ot::Reference<ot_types::TypeName<TemplateArgsName>>& other) : ot::Reference<ot_types::TypeName<TemplateArgsName>>(other){} \
 		/* Write attribute on construction */ \

@@ -39,3 +39,15 @@ CMakeLists.txt.user
 /.vs
 /out
 /CMakeFiles
+
+/doc/_minted-*/*
+/doc/*.aux
+/doc/*.bcf
+/doc/*.idx
+/doc/*.lof
+/doc/*.log
+/doc/*.lot
+/doc/*.out
+/doc/*.run.xml
+/doc/*.synctex.gz
+/doc/*.toc
